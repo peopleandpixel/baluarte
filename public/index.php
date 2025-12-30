@@ -141,19 +141,40 @@ try {
 
 ?>
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Baluarte Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#08121c',
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #08121c !important;
+        }
+        .navbar {
+            background-color: rgba(13, 25, 39, 0.8) !important;
+            backdrop-filter: blur(8px);
+        }
+    </style>
 </head>
-<body class="bg-base-200 min-h-screen">
-<div class="navbar bg-base-100 shadow-lg mb-8">
+<body class="min-h-screen text-gray-200">
+<div class="navbar shadow-lg mb-8 border-b border-gray-800">
     <div class="flex-1 px-2 mx-2">
-        <span class="text-lg font-bold">🛡️ Baluarte</span>
+        <img src="assets/img/logo.jpg" alt="Baluarte Logo" class="h-10 w-auto mr-2 rounded">
+        <span class="text-xl font-bold tracking-tight">Baluarte</span>
     </div>
     <div class="flex-none">
         <ul class="menu menu-horizontal px-1">
@@ -178,52 +199,52 @@ try {
             
             <div class="flex flex-col gap-8 mb-8">
                 <!-- General Settings -->
-                <div class="card bg-base-100 shadow-xl w-full">
+                <div class="card bg-gray-900/50 shadow-xl w-full border border-gray-800">
                     <div class="card-body">
                         <h2 class="card-title mb-4"><i class="fa-solid fa-gears"></i> General Settings</h2>
                         
                         <div class="form-control w-full">
                             <label class="label">
-                                <span class="label-text">Database Path</span>
+                                <span class="label-text text-gray-300">Database Path</span>
                             </label>
-                            <input type="text" name="db_path" value="<?php echo htmlspecialchars($config['database']['path'] ?? 'baluarte.sqlite'); ?>" class="input input-bordered w-full" />
+                            <input type="text" name="db_path" value="<?php echo htmlspecialchars($config['database']['path'] ?? 'baluarte.sqlite'); ?>" class="input input-bordered bg-gray-800 border-gray-700 w-full" />
                         </div>
 
                         <div class="form-control w-full mt-4">
                             <label class="label">
-                                <span class="label-text">AbuseIPDB API Key</span>
+                                <span class="label-text text-gray-300">AbuseIPDB API Key</span>
                             </label>
-                            <input type="text" name="abuseipdb_key" value="<?php echo htmlspecialchars($config['api']['abuseipdb']['key'] ?? ''); ?>" class="input input-bordered w-full" />
+                            <input type="text" name="abuseipdb_key" value="<?php echo htmlspecialchars($config['api']['abuseipdb']['key'] ?? ''); ?>" class="input input-bordered bg-gray-800 border-gray-700 w-full" />
                         </div>
 
                         <div class="form-control w-full mt-4">
                             <label class="label">
-                                <span class="label-text">GeoIP Database Path</span>
+                                <span class="label-text text-gray-300">GeoIP Database Path</span>
                             </label>
-                            <input type="text" name="geoip_path" value="<?php echo htmlspecialchars($config['geoip']['database_path'] ?? ''); ?>" class="input input-bordered w-full" />
+                            <input type="text" name="geoip_path" value="<?php echo htmlspecialchars($config['geoip']['database_path'] ?? ''); ?>" class="input input-bordered bg-gray-800 border-gray-700 w-full" />
                         </div>
 
                         <div class="form-control w-full mt-4">
                             <label class="label">
-                                <span class="label-text">Webhook URL</span>
+                                <span class="label-text text-gray-300">Webhook URL</span>
                             </label>
-                            <input type="text" name="webhook_url" value="<?php echo htmlspecialchars($config['notifications']['webhook']['url'] ?? ''); ?>" class="input input-bordered w-full" />
+                            <input type="text" name="webhook_url" value="<?php echo htmlspecialchars($config['notifications']['webhook']['url'] ?? ''); ?>" class="input input-bordered bg-gray-800 border-gray-700 w-full" />
                         </div>
 
-                        <div class="divider">Firewall</div>
+                        <div class="divider before:bg-gray-800 after:bg-gray-800">Firewall</div>
 
                         <div class="form-control">
                             <label class="label cursor-pointer">
-                                <span class="label-text">Enable Firewall Integration</span> 
-                                <input type="checkbox" name="firewall_enabled" class="checkbox" <?php echo ($config['firewall']['enabled'] ?? false) ? 'checked' : ''; ?> />
+                                <span class="label-text text-gray-300">Enable Firewall Integration</span> 
+                                <input type="checkbox" name="firewall_enabled" class="checkbox checkbox-primary" <?php echo ($config['firewall']['enabled'] ?? false) ? 'checked' : ''; ?> />
                             </label>
                         </div>
 
                         <div class="form-control w-full mt-2">
                             <label class="label">
-                                <span class="label-text">Firewall Driver</span>
+                                <span class="label-text text-gray-300">Firewall Driver</span>
                             </label>
-                            <select name="firewall_driver" class="select select-bordered w-full">
+                            <select name="firewall_driver" class="select select-bordered bg-gray-800 border-gray-700 w-full text-gray-200">
                                 <option value="ufw" <?php echo ($config['firewall']['driver'] ?? '') === 'ufw' ? 'selected' : ''; ?>>UFW</option>
                                 <option value="iptables" <?php echo ($config['firewall']['driver'] ?? '') === 'iptables' ? 'selected' : ''; ?>>iptables</option>
                             </select>
@@ -232,13 +253,13 @@ try {
                 </div>
 
                 <!-- Patterns Management -->
-                <div class="card bg-base-100 shadow-xl w-full">
+                <div class="card bg-gray-900/50 shadow-xl w-full border border-gray-800">
                     <div class="card-body">
                         <h2 class="card-title mb-4"><i class="fa-solid fa-list-check"></i> Log Patterns</h2>
-                        <div class="overflow-y-auto max-h-[500px]">
+                        <div class="overflow-y-auto max-h-[500px] space-y-4">
                             <?php foreach ($config['patterns'] ?? [] as $id => $pattern): ?>
                                 <?php $isEnabled = $pattern['enabled'] ?? true; ?>
-                                <div class="<?php echo $isEnabled ? 'bg-success/10' : 'bg-base-300'; ?> p-4 rounded-lg mb-4 relative group">
+                                <div class="<?php echo $isEnabled ? 'bg-success/5 border border-success/20' : 'bg-gray-800/50 border border-gray-700'; ?> p-4 rounded-lg relative group">
                                     <div class="flex justify-between items-start mb-2 pr-8">
                                         <div class="font-bold"><?php echo htmlspecialchars($id); ?></div>
                                         <div class="form-control">
@@ -317,39 +338,39 @@ try {
     
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Stats -->
-        <div class="stats shadow bg-base-100 lg:col-span-3">
-            <div class="stat">
+        <div class="stats shadow bg-gray-900/50 lg:col-span-3 border border-gray-800">
+            <div class="stat border-gray-800">
                 <div class="stat-figure text-primary">
                     <i class="fa-solid fa-user-slash fa-2x"></i>
                 </div>
-                <div class="stat-title">Active Bans</div>
+                <div class="stat-title text-gray-400">Active Bans</div>
                 <div class="stat-value text-primary"><?php echo count($activeBansDetailed); ?></div>
-                <div class="stat-desc">Total IPs, ranges, and countries</div>
+                <div class="stat-desc text-gray-500">Total IPs, ranges, and countries</div>
             </div>
             
-            <div class="stat">
+            <div class="stat border-gray-800">
                 <div class="stat-figure text-secondary">
                     <i class="fa-solid fa-eye fa-2x"></i>
                 </div>
-                <div class="stat-title">Recent Detections</div>
+                <div class="stat-title text-gray-400">Recent Detections</div>
                 <div class="stat-value text-secondary"><?php echo count($detectedIps); ?></div>
-                <div class="stat-desc">In the malicious logs database</div>
+                <div class="stat-desc text-gray-500">In the malicious logs database</div>
             </div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Add Ban Form -->
-        <div class="card bg-base-100 shadow-xl">
+        <div class="card bg-gray-900/50 shadow-xl border border-gray-800">
             <div class="card-body">
-                <h2 class="card-title mb-4">Manual Ban</h2>
+                <h2 class="card-title mb-4 text-gray-200">Manual Ban</h2>
                 <form method="POST">
                     <input type="hidden" name="action" value="add_ban">
                     <div class="form-control w-full">
                         <label class="label">
-                            <span class="label-text">Ban Type</span>
+                            <span class="label-text text-gray-300">Ban Type</span>
                         </label>
-                        <select name="type" class="select select-bordered w-full" id="ban_type" onchange="toggleBanInput()">
+                        <select name="type" class="select select-bordered bg-gray-800 border-gray-700 w-full text-gray-200" id="ban_type" onchange="toggleBanInput()">
                             <option value="ip">Single IP</option>
                             <option value="range">IP Range (CIDR)</option>
                             <option value="country">Country</option>
@@ -358,16 +379,16 @@ try {
 
                     <div class="form-control w-full mt-4" id="target_input_container">
                         <label class="label">
-                            <span class="label-text" id="target_label">IP Address</span>
+                            <span class="label-text text-gray-300" id="target_label">IP Address</span>
                         </label>
-                        <input type="text" name="target" id="target_input" placeholder="e.g. 1.2.3.4" class="input input-bordered w-full" />
+                        <input type="text" name="target" id="target_input" placeholder="e.g. 1.2.3.4" class="input input-bordered bg-gray-800 border-gray-700 w-full text-gray-200" />
                     </div>
 
                     <div class="form-control w-full mt-4 hidden" id="country_input_container">
                         <label class="label">
-                            <span class="label-text">Select Country</span>
+                            <span class="label-text text-gray-300">Select Country</span>
                         </label>
-                        <select name="target_country" id="country_select" class="select select-bordered w-full">
+                        <select name="target_country" id="country_select" class="select select-bordered bg-gray-800 border-gray-700 w-full text-gray-200">
                             <option value="">-- Choose Country --</option>
                             <?php foreach ($countriesList as $c): ?>
                                 <option value="<?php echo htmlspecialchars($c['code']); ?>">
@@ -379,11 +400,11 @@ try {
 
                     <div class="form-control w-full mt-4">
                         <label class="label">
-                            <span class="label-text">Duration (minutes)</span>
+                            <span class="label-text text-gray-300">Duration (minutes)</span>
                         </label>
-                        <input type="number" name="duration" value="1440" class="input input-bordered w-full" />
+                        <input type="number" name="duration" value="1440" class="input input-bordered bg-gray-800 border-gray-700 w-full text-gray-200" />
                         <label class="label">
-                            <span class="label-text-alt">1440 = 24 hours</span>
+                            <span class="label-text-alt text-gray-500">1440 = 24 hours</span>
                         </label>
                     </div>
 
@@ -395,24 +416,24 @@ try {
         </div>
 
         <!-- Active Bans Table -->
-        <div class="card bg-base-100 shadow-xl lg:col-span-2">
+        <div class="card bg-gray-900/50 shadow-xl lg:col-span-2 border border-gray-800">
             <div class="card-body">
-                <h2 class="card-title mb-4">Currently Blocked</h2>
+                <h2 class="card-title mb-4 text-gray-200">Currently Blocked</h2>
                 <div class="overflow-x-auto">
                     <table class="table w-full">
-                        <thead>
+                        <thead class="text-gray-400 border-gray-800">
                         <tr>
-                            <th>Target</th>
-                            <th>Type</th>
-                            <th>Banned At</th>
-                            <th>Expires At</th>
-                            <th>Action</th>
+                            <th class="bg-transparent border-gray-800">Target</th>
+                            <th class="bg-transparent border-gray-800">Type</th>
+                            <th class="bg-transparent border-gray-800">Banned At</th>
+                            <th class="bg-transparent border-gray-800">Expires At</th>
+                            <th class="bg-transparent border-gray-800">Action</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-gray-300">
                         <?php foreach ($activeBansDetailed as $ban): ?>
-                            <tr>
-                                <td>
+                            <tr class="border-gray-800">
+                                <td class="border-gray-800">
                                     <?php if ($ban['type'] === 'country'): ?>
                                         <?php 
                                             $countryCode = $ban['ip_address'];
@@ -421,22 +442,22 @@ try {
                                             echo ($country['flag'] ?? '') . ' ' . htmlspecialchars($country['name'] ?? $countryCode);
                                         ?>
                                     <?php else: ?>
-                                        <code class="text-sm"><?php echo htmlspecialchars($ban['ip_address']); ?></code>
+                                        <code class="text-sm bg-gray-800 px-2 py-1 rounded text-primary-content/80"><?php echo htmlspecialchars($ban['ip_address']); ?></code>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td class="border-gray-800">
                                     <div class="badge <?php 
                                         echo match($ban['type']) {
                                             'range' => 'badge-warning',
                                             'country' => 'badge-error',
-                                            default => 'badge-ghost'
+                                            default => 'badge-ghost border-gray-700'
                                         };
                                     ?>">
                                         <?php echo htmlspecialchars($ban['type']); ?>
                                     </div>
                                 </td>
-                                <td class="text-xs"><?php echo htmlspecialchars($ban['banned_at']); ?></td>
-                                <td class="text-xs"><?php echo htmlspecialchars($ban['expires_at']); ?></td>
+                                <td class="text-xs border-gray-800"><?php echo htmlspecialchars($ban['banned_at']); ?></td>
+                                <td class="text-xs border-gray-800"><?php echo htmlspecialchars($ban['expires_at']); ?></td>
                                 <td>
                                     <form method="POST" onsubmit="return confirm('Really remove this ban?')">
                                         <input type="hidden" name="action" value="remove_ban">
@@ -458,26 +479,26 @@ try {
         </div>
 
         <!-- Recent Detections -->
-        <div class="card bg-base-100 shadow-xl lg:col-span-3">
+        <div class="card bg-gray-900/50 shadow-xl lg:col-span-3 border border-gray-800">
             <div class="card-body">
-                <h2 class="card-title mb-4">Recent Detections</h2>
+                <h2 class="card-title mb-4 text-gray-200">Recent Detections</h2>
                 <div class="overflow-x-auto">
-                    <table class="table table-zebra w-full">
-                        <thead>
+                    <table class="table w-full">
+                        <thead class="text-gray-400 border-gray-800">
                         <tr>
-                            <th>IP Address</th>
-                            <th>Reason</th>
-                            <th>Source</th>
-                            <th>Location</th>
-                            <th>Detected At</th>
+                            <th class="bg-transparent border-gray-800">IP Address</th>
+                            <th class="bg-transparent border-gray-800">Reason</th>
+                            <th class="bg-transparent border-gray-800">Source</th>
+                            <th class="bg-transparent border-gray-800">Location</th>
+                            <th class="bg-transparent border-gray-800">Detected At</th>
                         </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-gray-300">
                         <?php foreach ($detectedIps as $ip): ?>
-                            <tr>
-                                <td>
+                            <tr class="hover:bg-gray-800/30 border-gray-800 transition-colors">
+                                <td class="border-gray-800">
                                     <div class="flex items-center space-x-2">
-                                        <code class="text-sm"><?php echo htmlspecialchars($ip['ip_address']); ?></code>
+                                        <code class="text-sm bg-gray-800 px-2 py-1 rounded text-primary-content/80"><?php echo htmlspecialchars($ip['ip_address']); ?></code>
                                         <form method="POST" class="inline">
                                             <input type="hidden" name="action" value="add_ban">
                                             <input type="hidden" name="type" value="ip">
@@ -488,21 +509,21 @@ try {
                                         </form>
                                     </div>
                                 </td>
-                                <td class="max-w-xs truncate" title="<?php echo htmlspecialchars($ip['reason']); ?>">
+                                <td class="max-w-xs truncate border-gray-800" title="<?php echo htmlspecialchars($ip['reason']); ?>">
                                     <?php echo htmlspecialchars($ip['reason']); ?>
                                 </td>
-                                <td><span class="badge badge-info badge-sm"><?php echo htmlspecialchars($ip['log_source']); ?></span></td>
-                                <td class="text-sm">
+                                <td class="border-gray-800"><span class="badge badge-info badge-sm"><?php echo htmlspecialchars($ip['log_source']); ?></span></td>
+                                <td class="text-sm border-gray-800">
                                     <?php echo htmlspecialchars(($ip['city'] ?? '') . ($ip['city'] && $ip['country'] ? ', ' : '') . ($ip['country'] ?? '') ?: 'Unknown'); ?>
                                     <?php if ($ip['isp']): ?>
                                         <br><small class="opacity-60"><?php echo htmlspecialchars($ip['isp']); ?></small>
                                     <?php endif; ?>
                                 </td>
-                                <td class="text-xs"><?php echo htmlspecialchars($ip['detected_at']); ?></td>
+                                <td class="text-xs border-gray-800"><?php echo htmlspecialchars($ip['detected_at']); ?></td>
                             </tr>
                         <?php endforeach; ?>
                         <?php if (empty($detectedIps)): ?>
-                            <tr><td colspan="5" class="text-center italic opacity-50">No detections found.</td></tr>
+                            <tr><td colspan="5" class="text-center italic opacity-50 border-gray-800">No detections found.</td></tr>
                         <?php endif; ?>
                         </tbody>
                     </table>
