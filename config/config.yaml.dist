@@ -83,3 +83,8 @@ patterns:
     regex: '/sudo:.*auth failure;.*rhost=(\d+\.\d+\.\d+\.\d+)/'
     reason: 'Sudo authentication failure'
     enabled: true
+
+gui:
+  password_hash: '' # Leave empty to disable password protection
+  two_factor_secret: '' # Leave empty to disable 2FA
+  two_factor_enabled: false

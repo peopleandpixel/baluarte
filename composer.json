@@ -20,7 +20,8 @@
     "symfony/cache": "^8.0",
     "php-mqtt/client": "^2.3",
     "latte/latte": "^3.1",
-    "firebase/php-jwt": "^7.0"
+    "firebase/php-jwt": "^7.0",
+    "robthree/twofactorauth": "^3.0"
   },
 
   "autoload": {

@@ -4,9 +4,14 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Baluarte\Database\DatabaseHandler;
 use Baluarte\Service\CountryIpService;
+use RobThree\Auth\TwoFactorAuthException;
 use Symfony\Component\Yaml\Yaml;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use RobThree\Auth\TwoFactorAuth;
+use RobThree\Auth\Providers\Qr\GoogleChartsQrCodeProvider;
+
+session_start();
 
 $configPath = __DIR__ . '/../config/config.yaml';
 $config = [];
@@ -33,11 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($target) {
             $dbHandler->addBan($target, $duration, $type);
         }
+        header('Location: /');
+        exit;
     } elseif ($action === 'remove_ban') {
         $ip = $_POST['ip'] ?? '';
         if ($ip) {
             $dbHandler->removeBan($ip);
         }
+        header('Location: /');
+        exit;
     } elseif ($action === 'update_config') {
         $newConfig = $config;
         
@@ -107,13 +116,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         file_put_contents($configPath, Yaml::dump($newConfig, 4));
         header('Location: /?page=settings&saved=1');
         exit;
+    } elseif ($action === 'update_gui_settings') {
+        $newConfig = $config;
+        if (!isset($newConfig['gui'])) $newConfig['gui'] = [];
+
+        if (!empty($_POST['new_password'])) {
+            $newConfig['gui']['password_hash'] = password_hash($_POST['new_password'], PASSWORD_DEFAULT);
+        }
+
+        $newConfig['gui']['two_factor_enabled'] = isset($_POST['two_factor_enabled']);
+        
+        if (isset($_POST['regenerate_2fa'])) {
+            $tfa = new TwoFactorAuth(new GoogleChartsQrCodeProvider());
+            $newConfig['gui']['two_factor_secret'] = $tfa->createSecret();
+            $newConfig['gui']['two_factor_enabled'] = false; // Disable until verified if we had a verification step, but here we just regenerate
+        }
+
+        file_put_contents($configPath, Yaml::dump($newConfig, 4));
+        header('Location: /?page=settings&saved=1');
+        exit;
     }
-    header('Location: /');
-    exit;
 }
 
 $page = $_GET['page'] ?? 'dashboard';
 $uri = $_SERVER['REQUEST_URI'];
+
+// Authentication check
+$passwordHash = $config['gui']['password_hash'] ?? '';
+$twoFactorEnabled = $config['gui']['two_factor_enabled'] ?? false;
+$twoFactorSecret = $config['gui']['two_factor_secret'] ?? '';
+
+if ($page === 'logout') {
+    session_destroy();
+    header('Location: /');
+    exit;
+}
+
+if (!empty($passwordHash)) {
+    if (!isset($_SESSION['authenticated']) || $_SESSION['authenticated'] !== true) {
+        $error = null;
+        if ($page === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+            $password = $_POST['password'] ?? '';
+            $code = $_POST['two_factor_code'] ?? '';
+
+            if (password_verify($password, $passwordHash)) {
+                if ($twoFactorEnabled && !empty($twoFactorSecret)) {
+                    $tfa = new TwoFactorAuth(new GoogleChartsQrCodeProvider());
+                    if ($tfa->verifyCode($twoFactorSecret, $code)) {
+                        $_SESSION['authenticated'] = true;
+                        header('Location: /');
+                        exit;
+                    } else {
+                        $error = 'Invalid 2FA code';
+                    }
+                } else {
+                    $_SESSION['authenticated'] = true;
+                    header('Location: /');
+                    exit;
+                }
+            } else {
+                $error = 'Invalid password';
+            }
+        }
+
+        $latte = new Latte\Engine;
+        $latte->setTempDirectory(__DIR__ . '/../data/cache');
+        $latte->render(__DIR__ . '/../templates/login.latte', [
+            'twoFactorEnabled' => $twoFactorEnabled,
+            'error' => $error,
+            'config' => $config,
+        ]);
+        exit;
+    }
+}
 
 $latte = new Latte\Engine;
 $latte->setTempDirectory(__DIR__ . '/../data/cache');
@@ -254,13 +329,19 @@ $template = match ($page) {
     default => 'dashboard.latte',
 };
 
-$latte->render(__DIR__ . '/../templates/' . $template, [
-    'page' => $page,
-    'config' => $config,
-    'detectedIps' => $detectedIps,
-    'detectedIpsCount' => $detectedIpsCount,
-    'activeBansDetailed' => $activeBansDetailed,
-    'activeBansCount' => $activeBansCount,
-    'countriesList' => $countriesList,
-]);
+try {
+    $latte->render(__DIR__ . '/../templates/' . $template, [
+        'page' => $page,
+        'config' => $config,
+        'detectedIps' => $detectedIps,
+        'detectedIpsCount' => $detectedIpsCount,
+        'activeBansDetailed' => $activeBansDetailed,
+        'activeBansCount' => $activeBansCount,
+        'countriesList' => $countriesList,
+        'qrCode' => (!empty($config['gui']['two_factor_secret'])) ? new TwoFactorAuth(new GoogleChartsQrCodeProvider())->getQRCodeImageAsDataUri('Baluarte', $config['gui']['two_factor_secret']) : null,
+        'twoFactorSecret' => $config['gui']['two_factor_secret'] ?? null,
+    ]);
+} catch (TwoFactorAuthException $e) {
+
+}
 exit;

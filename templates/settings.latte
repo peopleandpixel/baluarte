@@ -69,6 +69,47 @@
                     </div>
                 </div>
             </div>
+
+            <div class="card bg-base-200 shadow-xl">
+                <form method="POST">
+                    <input type="hidden" name="action" value="update_gui_settings">
+                    <div class="card-body">
+                        <h2 class="card-title">GUI Authentication</h2>
+                        <div class="form-control w-full">
+                            <label class="label"><span class="label-text">New Password</span></label>
+                            <input type="password" name="new_password" class="input input-bordered w-full" placeholder="Leave empty to keep current">
+                            <label class="label"><span class="label-text-alt opacity-70">Security: Use a strong password.</span></label>
+                        </div>
+
+                        <div class="divider">Two-Factor Authentication</div>
+
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-4">
+                                <input type="checkbox" name="two_factor_enabled" class="checkbox checkbox-primary" {if isset($config['gui']['two_factor_enabled']) && $config['gui']['two_factor_enabled']}checked{/if}>
+                                <span class="label-text text-lg font-semibold">Enable 2FA</span>
+                            </label>
+                        </div>
+
+                        {if $twoFactorSecret}
+                            <div class="mt-4 flex flex-col items-center p-4 bg-white rounded-lg">
+                                <img src="{$qrCode}" alt="2FA QR Code" class="w-48 h-48">
+                                <p class="text-black font-mono mt-2 text-sm">{$twoFactorSecret}</p>
+                            </div>
+                            <p class="text-xs opacity-70 mt-2">Scan this QR code with your authenticator app (e.g., Google Authenticator, Authy).</p>
+                        {/if}
+
+                        <div class="mt-4">
+                            <button type="submit" name="regenerate_2fa" class="btn btn-outline btn-sm btn-warning w-full" onclick="return confirm('This will invalidate your current 2FA setup. Are you sure?')">
+                                {if $twoFactorSecret}Regenerate 2FA Secret{else}Setup 2FA{/if}
+                            </button>
+                        </div>
+
+                        <div class="card-actions mt-6">
+                            <button type="submit" class="btn btn-primary w-full">Save GUI Settings</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <div class="space-y-6">

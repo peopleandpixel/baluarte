@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="baluarte">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{ifset title}{include title} - {/ifset}Baluarte Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#08121c',
+                    }
+                }
+            },
+            daisyui: {
+                themes: [
+                    {
+                        baluarte: {
+                            "primary": "#3b82f6",
+                            "secondary": "#64748b",
+                            "accent": "#1fb2a6",
+                            "neutral": "#191d24",
+                            "base-100": "#08121c",
+                            "info": "#3abff8",
+                            "success": "#36d399",
+                            "warning": "#fbbd23",
+                            "error": "#f87272",
+                        },
+                    },
+                ],
+            },
+        }
+    </script>
+    <style>
+        body { background-color: #08121c; color: #e2e8f0; }
+    </style>
+</head>
+<body class="min-h-screen bg-base-100">
+    <main>
+        {include content}
+    </main>
+</body>
+</html>
