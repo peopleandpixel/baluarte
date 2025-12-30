@@ -43,7 +43,7 @@ class FirewallManagerTest extends TestCase
 
     public function testGetDriverName()
     {
-        $driver = $this->createMock(FirewallDriverInterface::class);
+        $driver = $this->createStub(FirewallDriverInterface::class);
         $driver->method('getName')->willReturn('test-driver');
 
         $manager = new FirewallManager(true, $driver);
