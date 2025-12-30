@@ -2,7 +2,9 @@
 
 namespace Baluarte\Scanner;
 
+use Exception;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Class NotificationManager
@@ -29,8 +31,9 @@ class NotificationManager
 
     /**
      * Sends a notification message based on the configuration.
-     * 
+     *
      * @param string $message The message to send.
+     * @throws GuzzleException
      */
     public function notify(string $message): void
     {
@@ -41,8 +44,9 @@ class NotificationManager
 
     /**
      * Sends a notification via webhook.
-     * 
+     *
      * @param string $message The message to send.
+     * @throws GuzzleException
      */
     private function sendWebhook(string $message): void
     {
@@ -50,7 +54,7 @@ class NotificationManager
             $this->client->post($this->config['webhook']['url'], [
                 'json' => ['text' => $message]
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Silently fail for now, or log error
         }
     }

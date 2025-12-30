@@ -13,14 +13,14 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
  * 
  * @package Baluarte\Subscriber
  */
-class LoggerSubscriber implements EventSubscriberInterface
+readonly class LoggerSubscriber implements EventSubscriberInterface
 {
     /**
      * LoggerSubscriber constructor.
      * 
      * @param LoggerInterface $logger The logger service.
      */
-    public function __construct(private readonly LoggerInterface $logger)
+    public function __construct(private LoggerInterface $logger)
     {
     }
 

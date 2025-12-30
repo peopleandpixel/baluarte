@@ -14,7 +14,7 @@ if (file_exists($configPath)) {
 
 $dbPath = $config['database']['path'] ?? __DIR__ . '/../baluarte.sqlite';
 // If it's a relative path, make it relative to the root
-if (strpos($dbPath, '/') !== 0) {
+if (!str_starts_with($dbPath, '/')) {
     $dbPath = __DIR__ . '/../' . $dbPath;
 }
 
@@ -97,9 +97,21 @@ $page = $_GET['page'] ?? 'dashboard';
 $uri = $_SERVER['REQUEST_URI'];
 
 if ($uri === '/blocked-ips') {
-    $ips = $dbHandler->getActiveBansByType('ip');
-    $ranges = $dbHandler->getActiveBansByType('range');
-    $countries = $dbHandler->getActiveBansByType('country');
+    try {
+        $ips = $dbHandler->getActiveBansByType('ip');
+    } catch (\Doctrine\DBAL\Exception $e) {
+        $ips = [];
+    }
+    try {
+        $ranges = $dbHandler->getActiveBansByType('range');
+    } catch (\Doctrine\DBAL\Exception $e) {
+        $ranges = [];
+    }
+    try {
+        $countries = $dbHandler->getActiveBansByType('country');
+    } catch (\Doctrine\DBAL\Exception $e) {
+        $countries = [];
+    }
 
     $allBlocked = array_merge($ips, $ranges);
 
@@ -116,8 +128,16 @@ if ($uri === '/blocked-ips') {
     exit;
 }
 
-$detectedIps = $dbHandler->getAllDetectedIps();
-$activeBansDetailed = $dbHandler->getActiveBansDetailed();
+try {
+    $detectedIps = $dbHandler->getAllDetectedIps();
+} catch (\Doctrine\DBAL\Exception $e) {
+    $detectedIps = [];
+}
+try {
+    $activeBansDetailed = $dbHandler->getActiveBansDetailed();
+} catch (\Doctrine\DBAL\Exception $e) {
+    $activeBansDetailed = [];
+}
 
 ?>
 <!DOCTYPE html>
@@ -407,7 +427,6 @@ $activeBansDetailed = $dbHandler->getActiveBansDetailed();
                                 <td>
                                     <div class="badge <?php 
                                         echo match($ban['type']) {
-                                            'ip' => 'badge-ghost',
                                             'range' => 'badge-warning',
                                             'country' => 'badge-error',
                                             default => 'badge-ghost'

@@ -2,6 +2,7 @@
 
 namespace Baluarte\Scanner;
 
+use Exception;
 use GeoIp2\Database\Reader;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -30,7 +31,7 @@ class GeoIpService
         if ($dbPath && file_exists($dbPath)) {
             try {
                 $this->reader = new Reader($dbPath);
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->logger->error("Could not initialize GeoIP reader: " . $e->getMessage());
             }
         }
@@ -55,7 +56,7 @@ class GeoIpService
                 'city' => $record->city->name,
                 'isp' => null, // City database doesn't have ISP
             ];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->logger->debug("GeoIP lookup failed for $ip: " . $e->getMessage());
             return [];
         }

@@ -15,7 +15,8 @@
     "symfony/config": "^8.0",
     "geoip2/geoip2": "^3.3",
     "symfony/event-dispatcher": "^8.0",
-    "doctrine/dbal": "^4.4"
+    "doctrine/dbal": "^4.4",
+    "ext-pcntl": "*"
   },
 
   "autoload": {

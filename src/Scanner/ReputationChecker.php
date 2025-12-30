@@ -2,7 +2,9 @@
 
 namespace Baluarte\Scanner;
 
+use Exception;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
 /**
  * Class ReputationChecker
@@ -54,7 +56,9 @@ class ReputationChecker
             ]);
 
             return json_decode($response->getBody()->getContents(), true)['data'];
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
+            return ['error' => $e->getMessage()];
+        } catch (GuzzleException $e) {
             return ['error' => $e->getMessage()];
         }
     }

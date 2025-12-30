@@ -6,6 +6,8 @@ require __DIR__ . '/vendor/autoload.php';
 use Baluarte\Command\ScanCommand;
 use Baluarte\Command\ServeCommand;
 use Baluarte\Database\DatabaseHandler;
+use Baluarte\Scanner\GeoIpService;
+use Baluarte\Scanner\WhitelistManager;
 use Baluarte\Service\Firewall\IptablesDriver;
 use Baluarte\Service\Firewall\NftablesDriver;
 use Baluarte\Service\Firewall\UfwDriver;
@@ -79,11 +81,11 @@ $containerBuilder->register('notification_manager', NotificationManager::class)
     ->addArgument($config['notifications'] ?? []);
 
 // WhitelistManager
-$containerBuilder->register('whitelist_manager', \Baluarte\Scanner\WhitelistManager::class)
+$containerBuilder->register('whitelist_manager', WhitelistManager::class)
     ->addArgument($config['whitelist'] ?? []);
 
 // GeoIpService
-$containerBuilder->register('geoip_service', \Baluarte\Scanner\GeoIpService::class)
+$containerBuilder->register('geoip_service', GeoIpService::class)
     ->addArgument($config['geoip']['database_path'] ?? null)
     ->addArgument(new Reference('logger'));
 
@@ -113,6 +115,18 @@ $containerBuilder->register('scan_command', ScanCommand::class)
 $containerBuilder->register('serve_command', ServeCommand::class);
 
 $application = new Application('Baluarte', '1.0.0');
-$application->addCommand($containerBuilder->get('scan_command'));
-$application->addCommand($containerBuilder->get('serve_command'));
-$application->run();
+try {
+    $application->addCommand($containerBuilder->get('scan_command'));
+} catch (Exception $e) {
+
+}
+try {
+    $application->addCommand($containerBuilder->get('serve_command'));
+} catch (Exception $e) {
+
+}
+try {
+    $application->run();
+} catch (Exception $e) {
+
+}

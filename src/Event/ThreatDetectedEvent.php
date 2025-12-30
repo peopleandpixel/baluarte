@@ -13,7 +13,7 @@ use Symfony\Contracts\EventDispatcher\Event;
  */
 class ThreatDetectedEvent extends Event
 {
-    public const NAME = 'threat.detected';
+    public const string NAME = 'threat.detected';
 
     /**
      * ThreatDetectedEvent constructor.

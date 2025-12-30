@@ -49,12 +49,12 @@ class CountryIpService
             return file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         }
 
-        $url = "https://www.ipdeny.com/ipblocks/data/aggregated/{$countryCode}-aggregated.zone";
-        $this->logger->info("Downloading IP ranges for country: {$countryCode} from {$url}");
+        $url = "https://www.ipdeny.com/ipblocks/data/aggregated/$countryCode-aggregated.zone";
+        $this->logger->info("Downloading IP ranges for country: $countryCode from $url");
 
         $content = @file_get_contents($url);
         if ($content === false) {
-            $this->logger->error("Failed to download IP ranges for country: {$countryCode}");
+            $this->logger->error("Failed to download IP ranges for country: $countryCode");
             // Return cached version if exists, even if expired
             if (file_exists($cacheFile)) {
                 return file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);

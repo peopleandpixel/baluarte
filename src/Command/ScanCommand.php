@@ -11,6 +11,7 @@ use Baluarte\Scanner\ReputationChecker;
 use Baluarte\Scanner\WhitelistManager;
 use Baluarte\Scanner\GeoIpService;
 use Baluarte\Event\ThreatDetectedEvent;
+use Exception;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -46,18 +47,18 @@ class ScanCommand extends Command
      * @param int $banDuration Duration of bans in minutes.
      */
     public function __construct(
-        private LogScanner $scanner,
-        private DatabaseHandler $db,
-        private ReputationChecker $reputationChecker,
-        private FirewallManager $firewallManager,
-        private NotificationManager $notificationManager,
-        private WhitelistManager $whitelistManager,
-        private GeoIpService $geoIpService,
-        private EventDispatcherInterface $eventDispatcher,
-        private LoggerInterface $logger,
-        private string $logFormat = 'plain',
-        private array $threshold = ['attempts' => 1, 'minutes' => 60],
-        private int $banDuration = 1440
+        private readonly LogScanner               $scanner,
+        private readonly DatabaseHandler          $db,
+        private readonly ReputationChecker        $reputationChecker,
+        private readonly FirewallManager          $firewallManager,
+        private readonly NotificationManager      $notificationManager,
+        private readonly WhitelistManager         $whitelistManager,
+        private readonly GeoIpService             $geoIpService,
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly LoggerInterface          $logger,
+        private readonly string                   $logFormat = 'plain',
+        private readonly array                    $threshold = ['attempts' => 1, 'minutes' => 60],
+        private readonly int $banDuration = 1440
     ) {
         parent::__construct('scan');
     }
@@ -183,7 +184,7 @@ class ScanCommand extends Command
                 if ($count + 1 >= ($this->threshold['attempts'] ?? 1)) {
                     // Dispatch event
                     $this->eventDispatcher->dispatch(
-                        new ThreatDetectedEvent($ip, $result['reason'], $result),
+                        new ThreatDetectedEvent($ip, $result['reason'], (array)$result),
                         ThreatDetectedEvent::NAME
                     );
 
@@ -215,7 +216,7 @@ class ScanCommand extends Command
             }
 
             $io->success("Found and saved $totalSaved new malicious events from $logFile.");
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $io->error("Error scanning $logFile: " . $e->getMessage());
             $this->logger->error("Error scanning $logFile: " . $e->getMessage());
         }

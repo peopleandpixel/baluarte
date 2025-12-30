@@ -7,6 +7,7 @@ use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use RuntimeException;
 
 /**
  * Class DatabaseHandler
@@ -39,7 +40,7 @@ class DatabaseHandler
             $this->initializeSchema();
         } catch (Exception $e) {
             $this->logger->critical("Could not connect to database: " . $e->getMessage());
-            throw new \RuntimeException("Could not connect to database: " . $e->getMessage());
+            throw new RuntimeException("Could not connect to database: " . $e->getMessage());
         }
     }
 
@@ -220,8 +221,9 @@ class DatabaseHandler
 
     /**
      * Retrieves all detected IPs from the database, ordered by detection time (newest first).
-     * 
+     *
      * @return array Array of detected IPs with their details.
+     * @throws Exception
      */
     public function getAllDetectedIps(): array
     {
@@ -236,10 +238,11 @@ class DatabaseHandler
 
     /**
      * Counts the number of times an IP has been detected within a given period.
-     * 
+     *
      * @param string $ip The IP address.
      * @param int $minutes The period in minutes.
      * @return int The number of detections.
+     * @throws Exception
      */
     public function getAttemptCount(string $ip, int $minutes): int
     {
@@ -292,8 +295,9 @@ class DatabaseHandler
 
     /**
      * Retrieves all active IP bans.
-     * 
+     *
      * @return array List of banned IP addresses.
+     * @throws Exception
      */
     public function getActiveBans(): array
     {
@@ -311,9 +315,10 @@ class DatabaseHandler
 
     /**
      * Retrieves all active bans of a specific type.
-     * 
+     *
      * @param string $type The type of ban.
      * @return array List of banned identifiers (IPs, countries, etc.).
+     * @throws Exception
      */
     public function getActiveBansByType(string $type): array
     {
@@ -331,8 +336,9 @@ class DatabaseHandler
 
     /**
      * Retrieves detailed information for all active bans.
-     * 
+     *
      * @return array List of active bans with full details.
+     * @throws Exception
      */
     public function getActiveBansDetailed(): array
     {
@@ -349,8 +355,9 @@ class DatabaseHandler
 
     /**
      * Retrieves all expired bans.
-     * 
+     *
      * @return array List of identifiers for which the ban has expired.
+     * @throws Exception
      */
     public function getExpiredBans(): array
     {
@@ -382,10 +389,11 @@ class DatabaseHandler
 
     /**
      * Retrieves a setting value by its key.
-     * 
+     *
      * @param string $key The setting key.
      * @param string|null $default Default value if the setting is not found.
      * @return string|null The setting value or default.
+     * @throws Exception
      */
     public function getSetting(string $key, ?string $default = null): ?string
     {

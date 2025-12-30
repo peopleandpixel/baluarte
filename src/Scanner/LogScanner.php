@@ -2,6 +2,8 @@
 
 namespace Baluarte\Scanner;
 
+use Generator;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -14,7 +16,7 @@ use Psr\Log\NullLogger;
  */
 class LogScanner
 {
-    private array $patterns = [];
+    private array $patterns;
     private LoggerInterface $logger;
 
     /**
@@ -100,10 +102,10 @@ class LogScanner
      * @param string $filePath Path to the log file or 'journald'.
      * @param string $format Log format ('plain', 'json', or 'journal').
      * @param string|null $since Optional timestamp to scan from.
-     * @return \Generator Yields detected malicious entries.
-     * @throws \InvalidArgumentException If the log file is not found.
+     * @return Generator Yields detected malicious entries.
+     * @throws InvalidArgumentException If the log file is not found.
      */
-    public function scanFile(string $filePath, string $format = 'plain', ?string $since = null): \Generator
+    public function scanFile(string $filePath, string $format = 'plain', ?string $since = null): Generator
     {
         if ($filePath === 'journald') {
             yield from $this->scanJournal($since);
@@ -112,7 +114,7 @@ class LogScanner
 
         if (!file_exists($filePath)) {
             $this->logger->error("Log file not found: $filePath");
-            throw new \InvalidArgumentException("Log file not found: $filePath");
+            throw new InvalidArgumentException("Log file not found: $filePath");
         }
 
         $this->logger->info("Starting scan of file: $filePath (Format: $format)");
@@ -130,9 +132,9 @@ class LogScanner
      * Scans the systemd journal for malicious activity.
      * 
      * @param string|null $since Optional timestamp to scan from.
-     * @return \Generator Yields detected malicious entries.
+     * @return Generator Yields detected malicious entries.
      */
-    private function scanJournal(?string $since = null): \Generator
+    private function scanJournal(?string $since = null): Generator
     {
         $this->logger->info("Starting scan of systemd journal" . ($since ? " since $since" : ""));
 
@@ -156,9 +158,9 @@ class LogScanner
      * @param resource $handle Open file handle.
      * @param string $source Source name for logging.
      * @param string $type Format type.
-     * @return \Generator Yields detected malicious entries.
+     * @return Generator Yields detected malicious entries.
      */
-    private function scanHandle($handle, string $source, string $type = 'plain'): \Generator
+    private function scanHandle($handle, string $source, string $type = 'plain'): Generator
     {
         while (($line = fgets($handle)) !== false) {
             if ($type === 'journal') {
@@ -191,9 +193,9 @@ class LogScanner
      * 
      * @param string $line The line to scan.
      * @param string $source Source name for logging.
-     * @return \Generator Yields detected malicious entries.
+     * @return Generator Yields detected malicious entries.
      */
-    private function scanLine(string $line, string $source): \Generator
+    private function scanLine(string $line, string $source): Generator
     {
         foreach ($this->patterns as $type => $pattern) {
             if (isset($pattern['enabled']) && $pattern['enabled'] === false) {
@@ -219,9 +221,9 @@ class LogScanner
      * 
      * @param array $data The data to scan.
      * @param string $source Source name for logging.
-     * @return \Generator Yields detected malicious entries.
+     * @return Generator Yields detected malicious entries.
      */
-    private function scanData(array $data, string $source): \Generator
+    private function scanData(array $data, string $source): Generator
     {
         foreach ($this->patterns as $type => $pattern) {
             if (isset($pattern['enabled']) && $pattern['enabled'] === false) {
