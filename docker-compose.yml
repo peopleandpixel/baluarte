@@ -1,0 +1,18 @@
+services:
+  baluarte:
+    build: .
+    container_name: baluarte
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config/config.yaml:/app/config/config.yaml:ro
+      - ./baluarte.sqlite:/app/baluarte.sqlite
+      - ./logs/baluarte.log:/app/logs/baluarte.log
+      - /var/log:/var/log:ro
+    environment:
+      - TZ=UTC

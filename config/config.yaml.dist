@@ -1,0 +1,51 @@
+database:
+  path: 'baluarte.sqlite'
+
+logging:
+  max_files: 7
+
+api:
+  abuseipdb:
+    key: '' # Enter your AbuseIPDB API key here
+
+geoip:
+  database_path: 'data/GeoLite2-City.mmdb'
+
+firewall:
+  enabled: false
+  driver: 'ufw' # Can be 'ufw', 'iptables', or 'nftables' (default: ufw)
+
+notifications:
+  webhook:
+    url: '' # Enter your webhook URL here
+
+patterns:
+  ssh_failed_login:
+    regex: '/Failed password for (?:invalid user )?\S+ from (\d+\.\d+\.\d+\.\d+) port \d+ ssh2/'
+    reason: 'SSH failed login attempt'
+  apache_access_sqli:
+    regex: '/(\d+\.\d+\.\d+\.\d+).*"(?:GET|POST|HEAD).* (?:UNION|SELECT|INSERT|UPDATE|DELETE|DROP|--|#)/i'
+    reason: 'SQL injection attempt'
+  apache_access_path_traversal:
+    regex: '/^(\d+\.\d+\.\d+\.\d+).*"(?:GET|POST|HEAD).*\.\.\//i'
+    reason: 'Path traversal attempt'
+  auth_log_brute_force:
+    regex: '/(\d+\.\d+\.\d+\.\d+) .*: Failed password for/i'
+    reason: 'Brute force attempt'
+  json_example:
+    format: 'json'
+    field: 'log'
+    regex: '/Failed login from (\d+\.\d+\.\d+\.\d+)/'
+    reason: 'JSON log failure'
+  imap_failed_login:
+    regex: '/imap-login: Disconnected \(auth failed, \d+ attempts in \d+ secs\): user=<[^>]*>, method=\S+, rip=(\d+\.\d+\.\d+\.\d+), lip=\S+(?:, TLS(?:=\S+)?, session=<\S+>)?/'
+    reason: 'IMAP failed login'
+  smtp_failed_login:
+    regex: '/lost connection after AUTH from \S+\[(\d+\.\d+\.\d+\.\d+)\]/'
+    reason: 'SMTP failed login'
+  sudo_invalid:
+    regex: '/sudo:.*TTY=\S+ ; PWD=\S+ ; USER=\S+ ; COMMAND=\S+ ; [^;]*user NOT in sudoers/i'
+    reason: 'Invalid sudo attempt'
+  sudo_auth_fail:
+    regex: '/sudo:.*auth failure;.*rhost=(\d+\.\d+\.\d+\.\d+)/'
+    reason: 'Sudo authentication failure'

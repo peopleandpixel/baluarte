@@ -1,0 +1,14 @@
+[Unit]
+Description=Baluarte Log Scanner & Intrusion Prevention
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/baluarte
+ExecStart=/usr/bin/php /opt/baluarte/baluarte.php scan
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

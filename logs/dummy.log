@@ -1,0 +1,11 @@
+Dec 30 10:00:01 server sshd[1234]: Failed password for invalid user admin from 10.0.0.5 port 54321 ssh2
+20.20.20.20 - - [30/Dec/2025:10:00:01 +0000] "GET /phpmyadmin/setup.php?XDEBUG_SESSION_START=phpstorm UNION SELECT 1,2,3" 200 5000
+Dec 30 10:10:01 server sshd[1234]: Failed password for invalid user root from 8.8.8.8 port 54321 ssh2
+1.1.1.1 - - [30/Dec/2025:10:11:01 +0000] "GET /index.php?id=1' UNION SELECT 1,2,3 --" 200 5000
+139.162.174.192 - - [30/Dec/2025:10:12:01 +0000] "GET /../../etc/passwd" 404 100
+200.147.67.142 auth.log: Failed password for root
+{"log": "Failed login from 101.96.10.10"}
+Dec 30 10:13:01 server imap-login: Disconnected (auth failed, 1 attempts in 2 secs): user=<test>, method=PLAIN, rip=8.8.4.4, lip=1.2.3.4, TLS, session=<abc>
+Dec 30 10:14:01 server postfix/smtpd[123]: lost connection after AUTH from unknown[1.1.1.1]
+Dec 30 10:15:01 server sudo: pam_unix(sudo:auth): authentication failure; logname=uid=0 euid=0 tty=/dev/pts/0 ruser=jens rhost=139.162.174.192  user=jens
+Dec 30 10:16:01 server sudo: jens : TTY=pts/0 ; PWD=/home/jens ; USER=root ; COMMAND=/usr/bin/ls ; user NOT in sudoers
