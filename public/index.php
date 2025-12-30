@@ -36,10 +36,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($ip) {
             $dbHandler->removeBan($ip);
         }
+    } elseif ($action === 'update_config') {
+        $newConfig = $config;
+        
+        // General settings
+        $newConfig['database']['path'] = $_POST['db_path'] ?? 'baluarte.sqlite';
+        $newConfig['api']['abuseipdb']['key'] = $_POST['abuseipdb_key'] ?? '';
+        $newConfig['geoip']['database_path'] = $_POST['geoip_path'] ?? '';
+        $newConfig['firewall']['enabled'] = isset($_POST['firewall_enabled']);
+        $newConfig['firewall']['driver'] = $_POST['firewall_driver'] ?? 'ufw';
+        $newConfig['notifications']['webhook']['url'] = $_POST['webhook_url'] ?? '';
+        
+        // Patterns
+        $newConfig['patterns'] = [];
+        if (isset($_POST['patterns']) && is_array($_POST['patterns'])) {
+            foreach ($_POST['patterns'] as $id => $pattern) {
+                if (!empty($pattern['regex'])) {
+                    $newConfig['patterns'][$id] = [
+                        'regex' => $pattern['regex'],
+                        'reason' => $pattern['reason'] ?? '',
+                        'enabled' => isset($pattern['enabled'])
+                    ];
+                    if (!empty($pattern['format'])) {
+                        $newConfig['patterns'][$id]['format'] = $pattern['format'];
+                    }
+                    if (!empty($pattern['field'])) {
+                        $newConfig['patterns'][$id]['field'] = $pattern['field'];
+                    }
+                }
+            }
+        }
+        
+        // Add new pattern
+        $newId = $_POST['new_pattern_id'] ?? '';
+        $newRegex = $_POST['new_pattern_regex'] ?? '';
+        if (!empty($newId) && !empty($newRegex)) {
+            $newConfig['patterns'][$newId] = [
+                'regex' => $newRegex,
+                'reason' => $_POST['new_pattern_reason'] ?? '',
+                'enabled' => true
+            ];
+            if (!empty($_POST['new_pattern_format'])) {
+                $newConfig['patterns'][$newId]['format'] = $_POST['new_pattern_format'];
+            }
+            if (!empty($_POST['new_pattern_field'])) {
+                $newConfig['patterns'][$newId]['field'] = $_POST['new_pattern_field'];
+            }
+        }
+
+        file_put_contents($configPath, Yaml::dump($newConfig, 4));
+        header('Location: /?page=settings&saved=1');
+        exit;
     }
     header('Location: /');
     exit;
 }
+
+$page = $_GET['page'] ?? 'dashboard';
 
 $uri = $_SERVER['REQUEST_URI'];
 
@@ -84,13 +137,163 @@ $activeBansDetailed = $dbHandler->getActiveBansDetailed();
     </div>
     <div class="flex-none">
         <ul class="menu menu-horizontal px-1">
-            <li><a href="/" class="active">Dashboard</a></li>
+            <li><a href="/" class="<?php echo $page === 'dashboard' ? 'active' : ''; ?>">Dashboard</a></li>
+            <li><a href="?page=settings" class="<?php echo $page === 'settings' ? 'active' : ''; ?>">Settings</a></li>
             <li><a href="/blocked-ips">Blocked IPs (CSV)</a></li>
         </ul>
     </div>
 </div>
 
 <div class="container mx-auto p-4 max-w-6xl">
+    <?php if ($page === 'settings'): ?>
+        <?php if (isset($_GET['saved'])): ?>
+            <div class="alert alert-success mb-6 shadow-lg">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Configuration saved successfully!</span>
+            </div>
+        <?php endif; ?>
+
+        <form method="POST">
+            <input type="hidden" name="action" value="update_config">
+            
+            <div class="flex flex-col gap-8 mb-8">
+                <!-- General Settings -->
+                <div class="card bg-base-100 shadow-xl w-full">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4"><i class="fa-solid fa-gears"></i> General Settings</h2>
+                        
+                        <div class="form-control w-full">
+                            <label class="label">
+                                <span class="label-text">Database Path</span>
+                            </label>
+                            <input type="text" name="db_path" value="<?php echo htmlspecialchars($config['database']['path'] ?? 'baluarte.sqlite'); ?>" class="input input-bordered w-full" />
+                        </div>
+
+                        <div class="form-control w-full mt-4">
+                            <label class="label">
+                                <span class="label-text">AbuseIPDB API Key</span>
+                            </label>
+                            <input type="text" name="abuseipdb_key" value="<?php echo htmlspecialchars($config['api']['abuseipdb']['key'] ?? ''); ?>" class="input input-bordered w-full" />
+                        </div>
+
+                        <div class="form-control w-full mt-4">
+                            <label class="label">
+                                <span class="label-text">GeoIP Database Path</span>
+                            </label>
+                            <input type="text" name="geoip_path" value="<?php echo htmlspecialchars($config['geoip']['database_path'] ?? ''); ?>" class="input input-bordered w-full" />
+                        </div>
+
+                        <div class="form-control w-full mt-4">
+                            <label class="label">
+                                <span class="label-text">Webhook URL</span>
+                            </label>
+                            <input type="text" name="webhook_url" value="<?php echo htmlspecialchars($config['notifications']['webhook']['url'] ?? ''); ?>" class="input input-bordered w-full" />
+                        </div>
+
+                        <div class="divider">Firewall</div>
+
+                        <div class="form-control">
+                            <label class="label cursor-pointer">
+                                <span class="label-text">Enable Firewall Integration</span> 
+                                <input type="checkbox" name="firewall_enabled" class="checkbox" <?php echo ($config['firewall']['enabled'] ?? false) ? 'checked' : ''; ?> />
+                            </label>
+                        </div>
+
+                        <div class="form-control w-full mt-2">
+                            <label class="label">
+                                <span class="label-text">Firewall Driver</span>
+                            </label>
+                            <select name="firewall_driver" class="select select-bordered w-full">
+                                <option value="ufw" <?php echo ($config['firewall']['driver'] ?? '') === 'ufw' ? 'selected' : ''; ?>>UFW</option>
+                                <option value="iptables" <?php echo ($config['firewall']['driver'] ?? '') === 'iptables' ? 'selected' : ''; ?>>iptables</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patterns Management -->
+                <div class="card bg-base-100 shadow-xl w-full">
+                    <div class="card-body">
+                        <h2 class="card-title mb-4"><i class="fa-solid fa-list-check"></i> Log Patterns</h2>
+                        <div class="overflow-y-auto max-h-[500px]">
+                            <?php foreach ($config['patterns'] ?? [] as $id => $pattern): ?>
+                                <?php $isEnabled = $pattern['enabled'] ?? true; ?>
+                                <div class="<?php echo $isEnabled ? 'bg-success/10' : 'bg-base-300'; ?> p-4 rounded-lg mb-4 relative group">
+                                    <div class="flex justify-between items-start mb-2 pr-8">
+                                        <div class="font-bold"><?php echo htmlspecialchars($id); ?></div>
+                                        <div class="form-control">
+                                            <label class="label cursor-pointer py-0">
+                                                <span class="label-text-alt mr-2">Enabled</span>
+                                                <input type="checkbox" name="patterns[<?php echo htmlspecialchars($id); ?>][enabled]" class="checkbox checkbox-xs checkbox-primary" <?php echo $isEnabled ? 'checked' : ''; ?> />
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="form-control w-full">
+                                        <label class="label py-1">
+                                            <span class="label-text-alt">Regex</span>
+                                        </label>
+                                        <input type="text" name="patterns[<?php echo htmlspecialchars($id); ?>][regex]" value="<?php echo htmlspecialchars($pattern['regex']); ?>" class="input input-bordered input-sm w-full" />
+                                    </div>
+                                    <div class="form-control w-full mt-2">
+                                        <label class="label py-1">
+                                            <span class="label-text-alt">Reason</span>
+                                        </label>
+                                        <input type="text" name="patterns[<?php echo htmlspecialchars($id); ?>][reason]" value="<?php echo htmlspecialchars($pattern['reason'] ?? ''); ?>" class="input input-bordered input-sm w-full" />
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-2 mt-2">
+                                        <div class="form-control">
+                                            <label class="label py-1">
+                                                <span class="label-text-alt">Format (optional)</span>
+                                            </label>
+                                            <input type="text" name="patterns[<?php echo htmlspecialchars($id); ?>][format]" value="<?php echo htmlspecialchars($pattern['format'] ?? ''); ?>" placeholder="json" class="input input-bordered input-sm w-full" />
+                                        </div>
+                                        <div class="form-control">
+                                            <label class="label py-1">
+                                                <span class="label-text-alt">Field (optional)</span>
+                                            </label>
+                                            <input type="text" name="patterns[<?php echo htmlspecialchars($id); ?>][field]" value="<?php echo htmlspecialchars($pattern['field'] ?? ''); ?>" placeholder="log" class="input input-bordered input-sm w-full" />
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-circle btn-xs btn-error absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity" onclick="this.closest('.bg-base-200').remove()">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div class="divider">Add New Pattern</div>
+                        <div class="bg-primary/5 p-4 rounded-lg border border-primary/20">
+                            <div class="form-control w-full">
+                                <label class="label py-1">
+                                    <span class="label-text-alt font-bold">Unique ID</span>
+                                </label>
+                                <input type="text" name="new_pattern_id" placeholder="e.g. nginx_404" class="input input-bordered input-sm w-full" />
+                            </div>
+                            <div class="form-control w-full mt-2">
+                                <label class="label py-1">
+                                    <span class="label-text-alt font-bold">Regex</span>
+                                </label>
+                                <input type="text" name="new_pattern_regex" placeholder="/regex here/" class="input input-bordered input-sm w-full" />
+                            </div>
+                            <div class="form-control w-full mt-2">
+                                <label class="label py-1">
+                                    <span class="label-text-alt font-bold">Reason</span>
+                                </label>
+                                <input type="text" name="new_pattern_reason" placeholder="What to show in dashboard" class="input input-bordered input-sm w-full" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mb-12">
+                <button type="submit" class="btn btn-primary btn-lg px-12 shadow-xl">
+                    <i class="fa-solid fa-floppy-disk"></i> Save All Settings
+                </button>
+            </div>
+        </form>
+
+    <?php else: ?>
     
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <!-- Stats -->
@@ -288,6 +491,7 @@ $activeBansDetailed = $dbHandler->getActiveBansDetailed();
             </div>
         </div>
     </div>
+    <?php endif; ?>
 </div>
 
 <script>

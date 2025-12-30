@@ -30,35 +30,63 @@ class LogScanner
             $this->patterns = [
                 'ssh_failed_login' => [
                     'regex' => '/Failed password for (?:invalid user )?\S+ from (\d+\.\d+\.\d+\.\d+) port \d+ ssh2/',
-                    'reason' => 'SSH failed login attempt'
+                    'reason' => 'SSH failed login attempt',
+                    'enabled' => true
+                ],
+                'ssh_invalid_user' => [
+                    'regex' => '/Invalid user \S+ from (\d+\.\d+\.\d+\.\d+) port \d+/',
+                    'reason' => 'SSH invalid user attempt',
+                    'enabled' => true
+                ],
+                'nginx_404_probing' => [
+                    'regex' => '/(\d+\.\d+\.\d+\.\d+) .* "GET .*(?:\.php|\.env|\.git|\.config|wp-admin|admin).* HTTP\/.*" 404/i',
+                    'reason' => 'Vulnerability probing (404)',
+                    'enabled' => true
                 ],
                 'apache_access_sqli' => [
                     'regex' => '/(\d+\.\d+\.\d+\.\d+).*"(?:GET|POST|HEAD).* (?:UNION|SELECT|INSERT|UPDATE|DELETE|DROP|--|#)/i',
-                    'reason' => 'SQL injection attempt'
+                    'reason' => 'SQL injection attempt',
+                    'enabled' => true
                 ],
                 'apache_access_path_traversal' => [
                     'regex' => '/^(\d+\.\d+\.\d+\.\d+).*"(?:GET|POST|HEAD).*\.\.\//i',
-                    'reason' => 'Path traversal attempt'
+                    'reason' => 'Path traversal attempt',
+                    'enabled' => true
                 ],
                 'auth_log_brute_force' => [
                     'regex' => '/(\d+\.\d+\.\d+\.\d+) .*: Failed password for/i',
-                    'reason' => 'Brute force attempt'
+                    'reason' => 'Brute force attempt',
+                    'enabled' => true
                 ],
                 'imap_failed_login' => [
                     'regex' => '/imap-login: Disconnected \(auth failed, \d+ attempts in \d+ secs\): user=<[^>]*>, method=\S+, rip=(\d+\.\d+\.\d+\.\d+), lip=\S+(?:, TLS(?:=\S+)?, session=<\S+>)?/',
-                    'reason' => 'IMAP failed login'
+                    'reason' => 'IMAP failed login',
+                    'enabled' => true
+                ],
+                'dovecot_auth_fail' => [
+                    'regex' => '/auth-worker\(.*\): (?:pam|passwd-file)\(.*,(\d+\.\d+\.\d+\.\d+)\): Password mismatch/i',
+                    'reason' => 'Dovecot authentication failure',
+                    'enabled' => true
                 ],
                 'smtp_failed_login' => [
                     'regex' => '/lost connection after AUTH from \S+\[(\d+\.\d+\.\d+\.\d+)\]/',
-                    'reason' => 'SMTP failed login'
+                    'reason' => 'SMTP failed login',
+                    'enabled' => true
+                ],
+                'proftpd_failed_login' => [
+                    'regex' => '/proftpd\[\d+\] \S+ \((\d+\.\d+\.\d+\.\d+)\[\d+\.\d+\.\d+\.\d+\]\): USER \S+: no such user found from \d+\.\d+\.\d+\.\d+ to \d+\.\d+\.\d+\.\d+:\d+/i',
+                    'reason' => 'ProFTPD failed login',
+                    'enabled' => true
                 ],
                 'sudo_invalid' => [
                     'regex' => '/sudo:.*TTY=\S+ ; PWD=\S+ ; USER=\S+ ; COMMAND=\S+ ; [^;]*user NOT in sudoers/i',
-                    'reason' => 'Invalid sudo attempt'
+                    'reason' => 'Invalid sudo attempt',
+                    'enabled' => true
                 ],
                 'sudo_auth_fail' => [
                     'regex' => '/sudo:.*auth failure;.*rhost=(\d+\.\d+\.\d+\.\d+)/',
-                    'reason' => 'Sudo authentication failure'
+                    'reason' => 'Sudo authentication failure',
+                    'enabled' => true
                 ]
             ];
         } else {
@@ -168,6 +196,9 @@ class LogScanner
     private function scanLine(string $line, string $source): \Generator
     {
         foreach ($this->patterns as $type => $pattern) {
+            if (isset($pattern['enabled']) && $pattern['enabled'] === false) {
+                continue;
+            }
             if (isset($pattern['format']) && $pattern['format'] === 'json') {
                 continue;
             }
@@ -193,6 +224,9 @@ class LogScanner
     private function scanData(array $data, string $source): \Generator
     {
         foreach ($this->patterns as $type => $pattern) {
+            if (isset($pattern['enabled']) && $pattern['enabled'] === false) {
+                continue;
+            }
             if (isset($pattern['format']) && $pattern['format'] === 'json') {
                 $field = $pattern['field'] ?? 'message';
                 if (isset($data[$field]) && preg_match($pattern['regex'], $data[$field], $matches)) {

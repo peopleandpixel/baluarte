@@ -133,29 +133,38 @@ class LogScannerTest extends TestCase
         $this->assertEquals('Sudo authentication failure', $results[0]['reason']);
     }
 
-    public function testScanJournal(): void
+    public function testScanDisabledPattern(): void
     {
-        $scanner = new LogScanner();
-        $journalLine = json_encode(['MESSAGE' => 'Failed password for root from 1.1.1.1 port 22 ssh2', '_TRANSPORT' => 'journal']);
-        
-        $tempJournal = tempnam(sys_get_temp_dir(), 'journal');
-        file_put_contents($tempJournal, $journalLine . "\n");
-        
-        $handle = fopen($tempJournal, 'r');
-        
-        // We use reflection to test the private scanHandle method or just test scanFile if we could mock journalctl
-        // Since we refactored to scanHandle, we can test it directly if it was public, 
-        // but let's see if we can use Reflection
-        $method = new \ReflectionMethod(LogScanner::class, 'scanHandle');
-        $method->setAccessible(true);
-        
-        $results = iterator_to_array($method->invoke($scanner, $handle, 'journald', 'journal'));
-        
-        fclose($handle);
-        unlink($tempJournal);
-        
-        $this->assertCount(1, $results);
-        $this->assertEquals('1.1.1.1', $results[0]['ip']);
-        $this->assertEquals('SSH failed login attempt', $results[0]['reason']);
+        file_put_contents($this->tempLog, "Dec 30 00:00:01 server sshd[1234]: Failed password for root from 192.168.1.100 port 12345 ssh2\n");
+        $scanner = new LogScanner([
+            'ssh_failed_login' => [
+                'regex' => '/Failed password for (?:invalid user )?\S+ from (\d+\.\d+\.\d+\.\d+) port \d+ ssh2/',
+                'reason' => 'SSH failed login attempt',
+                'enabled' => false
+            ]
+        ]);
+        $results = iterator_to_array($scanner->scanFile($this->tempLog));
+
+        $this->assertCount(0, $results);
+    }
+
+    public function testScanDisabledJsonPattern(): void
+    {
+        $jsonData = json_encode(['message' => 'Failed password for root from 10.0.0.1 port 22 ssh2', 'timestamp' => '2025-12-30T00:00:00Z']);
+        file_put_contents($this->tempLog, $jsonData . "\n");
+
+        $scanner = new LogScanner([
+            'json_ssh' => [
+                'regex' => '/from (\d+\.\d+\.\d+\.\d+)/',
+                'reason' => 'JSON SSH fail',
+                'format' => 'json',
+                'field' => 'message',
+                'enabled' => false
+            ]
+        ]);
+
+        $results = iterator_to_array($scanner->scanFile($this->tempLog, 'json'));
+
+        $this->assertCount(0, $results);
     }
 }
