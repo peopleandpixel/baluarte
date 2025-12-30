@@ -15,6 +15,17 @@ Baluarte is a lightweight, efficient log scanner and automated blocking tool for
 - **Web Frontend**: Simple dashboard to visualize detected threats and active bans.
 - **Parallel Scanning**: Efficiently scans multiple log files using process forking.
 
+## Screenshots
+
+### Dashboard
+![Dashboard](screenshots/dashboard.png)
+
+### Active Bans
+![Active Bans](screenshots/bans.png)
+
+### Settings
+![Settings](screenshots/settings.png)
+
 ## Installation
 
 ### Prerequisites
