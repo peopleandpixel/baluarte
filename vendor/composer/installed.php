@@ -1,8 +1,8 @@
 <?php return array(
     'root' => array(
         'name' => 'peopleandpixel/baluarte',
-        'pretty_version' => '1.1.0',
-        'version' => '1.1.0.0',
+        'pretty_version' => '1.1.1',
+        'version' => '1.1.1.0',
         'reference' => null,
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
@@ -146,8 +146,8 @@
             'dev_requirement' => true,
         ),
         'peopleandpixel/baluarte' => array(
-            'pretty_version' => '1.1.0',
-            'version' => '1.1.0.0',
+            'pretty_version' => '1.1.1',
+            'version' => '1.1.1.0',
             'reference' => null,
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
@@ -362,6 +362,15 @@
             'reference' => '120b605dfeb996808c31b6477290a714d356e822',
             'type' => 'library',
             'install_path' => __DIR__ . '/../ralouphie/getallheaders',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'robthree/twofactorauth' => array(
+            'pretty_version' => 'v3.0.2',
+            'version' => '3.0.2.0',
+            'reference' => '6d70f9ca8e25568f163a7b3b3ff77bd8ea743978',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../robthree/twofactorauth',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

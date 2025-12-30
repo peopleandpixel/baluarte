@@ -11,8 +11,11 @@ Baluarte is a lightweight, efficient log scanner and automated blocking tool for
 - **Temporary Bans**: Automatic unblocking after a configurable period.
 - **IP Reputation**: Integration with AbuseIPDB to check IP reputation.
 - **GeoIP Enrichment**: Resolves IP addresses to country and city information.
-- **Notifications**: Supports webhook notifications for detected threats.
-- **Web Frontend**: Simple dashboard to visualize detected threats and active bans.
+- **Notifications**: Supports webhook and MQTT notifications for detected threats.
+- **MQTT Control**: Listen for remote commands via MQTT to trigger actions.
+- **REST API**: JWT-secured API to manage bans and view detected threats.
+- **Web Frontend**: Modern dashboard built with Tailwind CSS, DaisyUI, and Latte templates.
+- **Security**: Optional password protection and Two-Factor Authentication (2FA) for the web interface.
 - **Parallel Scanning**: Efficiently scans multiple log files using process forking.
 
 ## Screenshots
@@ -84,6 +87,25 @@ To start the built-in web server for the dashboard:
 ```
 Then visit `http://localhost:8080` in your browser.
 
+### MQTT Listener
+
+To listen for commands via MQTT:
+```bash
+./baluarte.php mqtt:listen
+```
+
+### API Usage
+
+The REST API is available at `/api/`. If a `jwt_secret` is configured, all requests must include a valid JWT token in the `Authorization` header:
+`Authorization: Bearer <your-token>`
+
+Endpoints:
+- `GET /api/bans`: List all active bans.
+- `POST /api/bans`: Add a new ban.
+- `DELETE /api/bans/{ip}`: Remove a ban.
+- `GET /api/threats`: List detected threats.
+- `GET /api/settings`: Get current configuration.
+
 ### Running as a Service
 
 A systemd unit file is provided (`baluarte.service`) to run Baluarte as a background daemon.
@@ -100,10 +122,14 @@ A systemd unit file is provided (`baluarte.service`) to run Baluarte as a backgr
 The main configuration file is `config/config.yaml`.
 
 - `database.path`: Path to the SQLite database.
+- `api.jwt_secret`: Secret key for JWT authentication (required for API security).
 - `api.abuseipdb.key`: Your AbuseIPDB API key.
 - `geoip.database_path`: Path to your MaxMind GeoIP2 database.
 - `firewall.enabled`: Set to `true` to enable automatic blocking.
 - `firewall.driver`: Choose between `ufw`, `iptables`, or `nftables`.
+- `notifications.mqtt`: Configure MQTT broker details and topics.
+- `gui.password_hash`: Password for dashboard access (BCrypt).
+- `gui.two_factor_enabled`: Enable/disable 2FA.
 - `patterns`: Define custom regex patterns for detection.
 
 ## Documentation

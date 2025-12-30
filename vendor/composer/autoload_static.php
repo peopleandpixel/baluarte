@@ -40,6 +40,10 @@ class ComposerStaticInit08cb9416caaac70c786a9b9ba8a8ff92
             'Symfony\\Component\\Config\\' => 25,
             'Symfony\\Component\\Cache\\' => 24,
         ),
+        'R' =>
+        array (
+            'RobThree\\Auth\\' => 14,
+        ),
         'P' =>
         array (
             'Psr\\Log\\' => 8,
@@ -155,6 +159,10 @@ class ComposerStaticInit08cb9416caaac70c786a9b9ba8a8ff92
         'Symfony\\Component\\Cache\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/cache',
+        ),
+        'RobThree\\Auth\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/robthree/twofactorauth/lib',
         ),
         'Psr\\Log\\' =>
         array (
