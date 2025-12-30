@@ -1,8 +1,8 @@
 <?php return array(
     'root' => array(
         'name' => 'peopleandpixel/baluarte',
-        'pretty_version' => '1.0.2',
-        'version' => '1.0.2.0',
+        'pretty_version' => '1.1.0',
+        'version' => '1.1.0.0',
         'reference' => null,
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
@@ -34,6 +34,15 @@
             'reference' => '459c2f5dd3d6a4633d3b5f46ee2b1c40f57d3f38',
             'type' => 'library',
             'install_path' => __DIR__ . '/../doctrine/deprecations',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'firebase/php-jwt' => array(
+            'pretty_version' => 'v7.0.2',
+            'version' => '7.0.2.0',
+            'reference' => '5645b43af647b6947daac1d0f659dd1fbe8d3b65',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../firebase/php-jwt',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -73,6 +82,15 @@
             'aliases' => array(),
             'dev_requirement' => false,
         ),
+        'latte/latte' => array(
+            'pretty_version' => 'v3.1.1',
+            'version' => '3.1.1.0',
+            'reference' => 'cb98e705eeb0fd18f1f1c5cfe1a5f6217f9fa8b3',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../latte/latte',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'maxmind-db/reader' => array(
             'pretty_version' => 'v1.13.1',
             'version' => '1.13.1.0',
@@ -109,6 +127,15 @@
             'aliases' => array(),
             'dev_requirement' => true,
         ),
+        'myclabs/php-enum' => array(
+            'pretty_version' => '1.8.5',
+            'version' => '1.8.5.0',
+            'reference' => 'e7be26966b7398204a234f8673fdad5ac6277802',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../myclabs/php-enum',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
         'nikic/php-parser' => array(
             'pretty_version' => 'v5.7.0',
             'version' => '5.7.0.0',
@@ -119,8 +146,8 @@
             'dev_requirement' => true,
         ),
         'peopleandpixel/baluarte' => array(
-            'pretty_version' => '1.0.2',
-            'version' => '1.0.2.0',
+            'pretty_version' => '1.1.0',
+            'version' => '1.1.0.0',
             'reference' => null,
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
@@ -142,6 +169,24 @@
             'reference' => '4f7fd7836c6f332bb2933569e566a0d6c4cbed74',
             'type' => 'library',
             'install_path' => __DIR__ . '/../phar-io/version',
+            'aliases' => array(),
+            'dev_requirement' => true,
+        ),
+        'php-mqtt/client' => array(
+            'pretty_version' => 'v2.3.1',
+            'version' => '2.3.1.0',
+            'reference' => '002134028bf0279e411e2419cde6b18983605780',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../php-mqtt/client',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'phpstan/phpstan' => array(
+            'pretty_version' => '2.1.33',
+            'version' => '2.1.33.0',
+            'reference' => '9e800e6bee7d5bd02784d4c6069b48032d16224f',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../phpstan/phpstan',
             'aliases' => array(),
             'dev_requirement' => true,
         ),
@@ -207,6 +252,12 @@
             'install_path' => __DIR__ . '/../psr/cache',
             'aliases' => array(),
             'dev_requirement' => false,
+        ),
+        'psr/cache-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '2.0|3.0',
+            ),
         ),
         'psr/container' => array(
             'pretty_version' => '2.0.2',
@@ -297,6 +348,12 @@
             'provided' => array(
                 0 => '1.0|2.0|3.0',
                 1 => '3.0.0',
+            ),
+        ),
+        'psr/simple-cache-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '1.0|2.0|3.0',
             ),
         ),
         'ralouphie/getallheaders' => array(
@@ -433,6 +490,30 @@
             'install_path' => __DIR__ . '/../staabm/side-effects-detector',
             'aliases' => array(),
             'dev_requirement' => true,
+        ),
+        'symfony/cache' => array(
+            'pretty_version' => 'v8.0.1',
+            'version' => '8.0.1.0',
+            'reference' => '0e67dc8145810d4e1c0d13c0e1d29ceb930b1c8e',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../symfony/cache',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/cache-contracts' => array(
+            'pretty_version' => 'v3.6.0',
+            'version' => '3.6.0.0',
+            'reference' => '5d68a57d66910405e5c0b63d6f0af941e66fc868',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../symfony/cache-contracts',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'symfony/cache-implementation' => array(
+            'dev_requirement' => false,
+            'provided' => array(
+                0 => '1.1|2.0|3.0',
+            ),
         ),
         'symfony/config' => array(
             'pretty_version' => 'v8.0.1',

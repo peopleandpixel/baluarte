@@ -1,0 +1,13 @@
+[2025-12-30 10:00:01] 66.249.66.1 - - "GET /posts/how-to-secure-linux HTTP/1.1" 200 5432 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+Dec 30 10:05:12 server1 sshd[1234]: Failed password for root from 192.168.1.100 port 54321 ssh2
+Dec 30 10:05:15 server1 sshd[1234]: Failed password for root from 192.168.1.100 port 54321 ssh2
+Dec 30 10:05:20 server1 sshd[1234]: Failed password for root from 192.168.1.100 port 54321 ssh2
+[2025-12-30 10:10:00] 66.249.66.2 - - "GET /robots.txt HTTP/1.1" 200 45 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+185.156.177.12 - - [30/Dec/2025:10:15:22 +0000] "GET /wp-admin/setup-config.php HTTP/1.1" 404 153 "-" "Mozilla/5.0"
+185.156.177.12 - - [30/Dec/2025:10:15:25 +0000] "GET /.env HTTP/1.1" 404 153 "-" "Mozilla/5.0"
+[2025-12-30 10:20:00] 66.249.66.3 - - "GET /assets/main.css HTTP/1.1" 200 1234 "https://example.com/posts/how-to-secure-linux" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+Dec 30 10:25:30 server1 sshd[5678]: Invalid user admin from 45.33.22.11 port 43210
+45.33.22.11 - - [30/Dec/2025:10:30:15 +0000] "GET /products.php?id=1' UNION SELECT NULL,NULL,NULL-- HTTP/1.1" 200 5432 "-" "Mozilla/5.0"
+80.82.77.33 - - [30/Dec/2025:10:35:45 +0000] "GET /../../etc/passwd HTTP/1.1" 404 153 "-" "Mozilla/5.0"
+[2025-12-30 10:40:00] 66.249.79.12 - - "GET /search?q=baluarte HTTP/1.1" 200 8900 "-" "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+Dec 30 10:45:00 server1 dovecot: imap-login: Disconnected (auth failed, 1 attempts in 2 secs): user=<test>, method=PLAIN, rip=1.2.3.4, lip=5.6.7.8, TLS, session=<abc123xyz>

@@ -14,99 +14,121 @@ use Baluarte\Service\Firewall\FirewallDriverInterface;
 class FirewallManager
 {
     private bool $enabled;
-    private ?FirewallDriverInterface $driver;
+    /** @var FirewallDriverInterface[] */
+    private array $drivers;
 
     /**
      * FirewallManager constructor.
      * 
      * @param bool $enabled Whether the firewall integration is enabled.
-     * @param FirewallDriverInterface|null $driver The firewall driver to use.
+     * @param FirewallDriverInterface[] $drivers The firewall drivers to use.
      */
-    public function __construct(bool $enabled = false, ?FirewallDriverInterface $driver = null)
+    public function __construct(bool $enabled = false, array $drivers = [])
     {
         $this->enabled = $enabled;
-        $this->driver = $driver;
+        $this->drivers = $drivers;
     }
 
     /**
-     * Blocks an IP address using the configured driver.
+     * Blocks an IP address using all configured drivers.
      * 
      * @param string $ip The IP address to block.
-     * @return bool True on success, false otherwise.
+     * @return bool True if at least one driver successfully blocked the IP, false otherwise.
      */
     public function blockIp(string $ip): bool
     {
-        if (!$this->enabled || !$this->driver) {
+        if (!$this->enabled || empty($this->drivers)) {
             return false;
         }
 
-        return $this->driver->blockIp($ip);
+        $success = false;
+        foreach ($this->drivers as $driver) {
+            if ($driver->blockIp($ip)) {
+                $success = true;
+            }
+        }
+
+        return $success;
     }
 
     /**
-     * Blocks all IP ranges associated with a country.
+     * Blocks all IP ranges associated with a country using all configured drivers.
      * 
      * @param string $countryCode The ISO 3166-1 alpha-2 country code.
      * @param GeoIpService $geoIpService GeoIP service to resolve country to ranges (not fully implemented).
-     * @return bool True on success, false otherwise.
+     * @return bool True if at least one driver successfully blocked the country, false otherwise.
      */
     public function blockCountry(string $countryCode, GeoIpService $geoIpService): bool
     {
-        if (!$this->enabled || !$this->driver) {
+        if (!$this->enabled || empty($this->drivers)) {
             return false;
         }
         
-        // This is a placeholder. Implementing country-wide blocking usually requires 
-        // resolving country to IP ranges or using a firewall that supports it.
-        // For now, we'll log it and return false, or if the driver supports it, call it.
-        if (method_exists($this->driver, 'blockCountry')) {
-            return $this->driver->blockCountry($countryCode);
+        $success = false;
+        foreach ($this->drivers as $driver) {
+            if (method_exists($driver, 'blockCountry')) {
+                if ($driver->blockCountry($countryCode)) {
+                    $success = true;
+                }
+            }
         }
 
-        return false;
+        return $success;
     }
 
     /**
-     * Unblocks an IP address using the configured driver.
+     * Unblocks an IP address using all configured drivers.
      * 
      * @param string $ip The IP address to unblock.
-     * @return bool True on success, false otherwise.
+     * @return bool True if at least one driver successfully unblocked the IP, false otherwise.
      */
     public function unblockIp(string $ip): bool
     {
-        if (!$this->enabled || !$this->driver) {
+        if (!$this->enabled || empty($this->drivers)) {
             return false;
         }
 
-        return $this->driver->unblockIp($ip);
+        $success = false;
+        foreach ($this->drivers as $driver) {
+            if ($driver->unblockIp($ip)) {
+                $success = true;
+            }
+        }
+
+        return $success;
     }
 
     /**
-     * Unblocks a country using the configured driver.
+     * Unblocks a country using all configured drivers.
      * 
      * @param string $countryCode The ISO 3166-1 alpha-2 country code.
-     * @return bool True on success, false otherwise.
+     * @return bool True if at least one driver successfully unblocked the country, false otherwise.
      */
     public function unblockCountry(string $countryCode): bool
     {
-        if (!$this->enabled || !$this->driver) {
+        if (!$this->enabled || empty($this->drivers)) {
             return false;
         }
 
-        if (method_exists($this->driver, 'unblockCountry')) {
-            return $this->driver->unblockCountry($countryCode);
+        $success = false;
+        foreach ($this->drivers as $driver) {
+            if (method_exists($driver, 'unblockCountry')) {
+                if ($driver->unblockCountry($countryCode)) {
+                    $success = true;
+                }
+            }
         }
 
-        return false;
+        return $success;
     }
 
     /**
-     * Returns the name of the active firewall driver.
+     * Returns the names of the active firewall drivers.
      * 
-     * @return string|null The driver name.
+     * @return array The driver names.
      */
-    public function getDriverName(): ?string
+    public function getDriverNames(): array
     {
-        return $this->driver?->getName();
+        return array_map(fn($driver) => $driver->getName(), $this->drivers);
     }
 }

@@ -8,6 +8,9 @@ use Doctrine\DBAL\Exception;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use RuntimeException;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Baluarte\Event\BanAddedEvent;
+use Baluarte\Event\BanRemovedEvent;
 
 /**
  * Class DatabaseHandler
@@ -21,16 +24,19 @@ class DatabaseHandler
 {
     private Connection $connection;
     private LoggerInterface $logger;
+    private ?EventDispatcherInterface $eventDispatcher;
 
     /**
      * DatabaseHandler constructor.
      * 
      * @param string $dbPath The path to the SQLite database file.
      * @param LoggerInterface|null $logger Logger instance for recording database events and errors.
+     * @param EventDispatcherInterface|null $eventDispatcher Event dispatcher instance.
      */
-    public function __construct(string $dbPath = 'baluarte.sqlite', ?LoggerInterface $logger = null)
+    public function __construct(string $dbPath = 'baluarte.sqlite', ?LoggerInterface $logger = null, ?EventDispatcherInterface $eventDispatcher = null)
     {
         $this->logger = $logger ?? new NullLogger();
+        $this->eventDispatcher = $eventDispatcher;
         try {
             $connectionParams = [
                 'driver' => 'pdo_sqlite',
@@ -220,20 +226,39 @@ class DatabaseHandler
     }
 
     /**
-     * Retrieves all detected IPs from the database, ordered by detection time (newest first).
+     * Retrieves all detected IPs from the database that are NOT currently banned, ordered by detection time (newest first).
      *
+     * @param int|null $limit Optional limit for the number of results.
      * @return array Array of detected IPs with their details.
      * @throws Exception
      */
-    public function getAllDetectedIps(): array
+    public function getAllDetectedIps(?int $limit = null): array
     {
         $queryBuilder = $this->connection->createQueryBuilder();
         $queryBuilder
-            ->select('*')
-            ->from('malicious_ips')
-            ->orderBy('detected_at', 'DESC');
+            ->select('m.id', 'm.ip_address as ip', 'm.reason', 'm.log_source', 'm.country', 'm.city', 'm.isp', 'm.detected_at')
+            ->from('malicious_ips', 'm')
+            ->leftJoin('m', 'active_bans', 'b', 'm.ip_address = b.ip_address AND b.expires_at > :now')
+            ->where('b.ip_address IS NULL')
+            ->orderBy('m.detected_at', 'DESC')
+            ->setParameter('now', date('Y-m-d H:i:s'));
+
+        if ($limit !== null) {
+            $queryBuilder->setMaxResults($limit);
+        }
 
         return $queryBuilder->executeQuery()->fetchAllAssociative();
+    }
+
+    /**
+     * Counts the total number of detected IPs.
+     * 
+     * @return int
+     * @throws Exception
+     */
+    public function getDetectedIpsCount(): int
+    {
+        return (int)$this->connection->fetchOne("SELECT COUNT(*) FROM malicious_ips");
     }
 
     /**
@@ -286,6 +311,14 @@ class DatabaseHandler
                     'type' => $type
                 ]);
             }
+
+            if ($this->eventDispatcher) {
+                $this->eventDispatcher->dispatch(
+                    new BanAddedEvent($ip, $type, $durationMinutes),
+                    BanAddedEvent::NAME
+                );
+            }
+
             return true;
         } catch (Exception $e) {
             $this->logger->error("Failed to add/update ban for $ip: " . $e->getMessage());
@@ -337,20 +370,36 @@ class DatabaseHandler
     /**
      * Retrieves detailed information for all active bans.
      *
+     * @param int|null $limit Optional limit.
      * @return array List of active bans with full details.
      * @throws Exception
      */
-    public function getActiveBansDetailed(): array
+    public function getActiveBansDetailed(?int $limit = null): array
     {
         $queryBuilder = $this->connection->createQueryBuilder();
         $queryBuilder
-            ->select('*')
+            ->select('id', 'ip_address as target', 'banned_at', 'expires_at', 'type')
             ->from('active_bans')
             ->where('expires_at > :now')
             ->orderBy('banned_at', 'DESC')
             ->setParameter('now', date('Y-m-d H:i:s'));
 
+        if ($limit !== null) {
+            $queryBuilder->setMaxResults($limit);
+        }
+
         return $queryBuilder->executeQuery()->fetchAllAssociative();
+    }
+
+    /**
+     * Counts the total number of active bans.
+     * 
+     * @return int
+     * @throws Exception
+     */
+    public function getActiveBansCount(): int
+    {
+        return (int)$this->connection->fetchOne("SELECT COUNT(*) FROM active_bans WHERE expires_at > ?", [date('Y-m-d H:i:s')]);
     }
 
     /**
@@ -381,6 +430,14 @@ class DatabaseHandler
     {
         try {
             $this->connection->delete('active_bans', ['ip_address' => $ip]);
+
+            if ($this->eventDispatcher) {
+                $this->eventDispatcher->dispatch(
+                    new BanRemovedEvent($ip),
+                    BanRemovedEvent::NAME
+                );
+            }
+
             return true;
         } catch (Exception $e) {
             return false;

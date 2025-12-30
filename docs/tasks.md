@@ -7,6 +7,12 @@ This document tracks potential improvements, optimizations, and features for Bal
 - [x] Optimize `LogScanner` to read large files more efficiently (e.g., using a fixed-size buffer if memory becomes an issue).
 - [x] Parallelize log scanning for multiple files.
 - [x] Add an index on `ip_address` or `detected_at` in the database for faster querying.
+- [x] Implement caching for GeoIP lookups and IP Reputation checks to reduce API calls and disk I/O.
+- [x] Optimize `ScanCommand` to perform GeoIP and Reputation checks in parallel or asynchronously.
+- [x] Implement a more efficient way to check threshold-based blocking (e.g., using Redis or an in-memory counter).
+- [x] Optimize database queries for fetching summary statistics for the dashboard.
+- [x] Use `yield from` in `LogScanner` for better memory efficiency when dealing with nested generators.
+- [x] Implement incremental log scanning (tracking file offsets) to avoid re-scanning the same lines.
 
 ## Features & Functionality
 - [x] Support for external configuration file (YAML or JSON) to define custom patterns and database settings.
@@ -20,6 +26,13 @@ This document tracks potential improvements, optimizations, and features for Bal
 - [x] Map blocked countries to IP ranges for comprehensive blocking via the `/blocked-ips` API.
 - [x] Implement threshold-based blocking (e.g., only block after X failed attempts within Y minutes).
 - [x] Support for temporary bans with automatic unblocking after a configurable period.
+- [x] Add support for real-time log tailing (e.g., using `tail -f` or `inotify`).
+- [x] Implement a REST API to manage bans, whitelist, and settings.
+- [x] Support for multiple firewall drivers simultaneously.
+- [x] Add an export feature (CSV, JSON) for detected threats.
+- [x] Implement more advanced pattern matching (e.g., multi-line logs, look-ahead/look-behind).
+- [x] Support for rate-limiting notifications to prevent alert fatigue.
+- [x] Add support for CIDR ranges in the Whitelist.
 
 ## Code Quality & Refactoring
 - [x] Implement Dependency Injection for `DatabaseHandler` and `LogScanner` in `baluarte.php`.
@@ -29,6 +42,10 @@ This document tracks potential improvements, optimizations, and features for Bal
 - [x] Use a proper CLI library (e.g., Symfony Console) for better argument parsing and output formatting.
 - [x] Refactor `FirewallManager` to use dedicated driver classes for different firewall types (UFW, IPTables, Nftables).
 - [x] Implement a proper Plugin/Event system to allow easy extension of the scanning and reporting logic.
+- [x] Decouple `ReputationChecker` and `GeoIpService` from `ScanCommand` via interfaces for better mockability.
+- [x] Implement a proper Configuration object instead of passing around arrays.
+- [x] Refactor `ScanCommand` into smaller, more focused service classes.
+- [x] Add static analysis tools (e.g., PHPStan, Psalm) to the CI/CD pipeline.
 
 ## Infrastructure & Deployment
 - [x] Create a `Dockerfile` and `docker-compose.yml` for containerized deployment.

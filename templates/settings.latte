@@ -1,0 +1,189 @@
+{layout 'layout.latte'}
+
+{block title}Settings{/block}
+
+{block content}
+{if isset($_GET['saved'])}
+<div class="alert alert-success shadow-lg mb-6">
+    <div>
+        <i class="bi bi-check-circle-fill"></i>
+        <span>Settings saved successfully!</span>
+    </div>
+</div>
+{/if}
+
+<form method="POST">
+    <input type="hidden" name="action" value="update_config">
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="space-y-6">
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">General Settings</h2>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Database Path</span></label>
+                        <input type="text" name="db_path" class="input input-bordered w-full" value="{$config['database']['path'] ?? 'baluarte.sqlite'}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">GeoIP Database Path</span></label>
+                        <input type="text" name="geoip_path" class="input input-bordered w-full" value="{$config['geoip']['database_path'] ?? ''}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">AbuseIPDB API Key</span></label>
+                        <input type="password" name="abuseipdb_key" class="input input-bordered w-full" value="{$config['api']['abuseipdb']['key'] ?? ''}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">API JWT Secret</span></label>
+                        <input type="text" name="jwt_secret" class="input input-bordered w-full" value="{$config['api']['jwt_secret'] ?? ''}">
+                        <label class="label"><span class="label-text-alt opacity-70">Leave empty to disable JWT authentication for API.</span></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Firewall Settings</h2>
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-4">
+                            <input type="checkbox" name="firewall_enabled" class="checkbox checkbox-primary" {if isset($config['firewall']['enabled']) && $config['firewall']['enabled']}checked{/if}>
+                            <span class="label-text">Enable Firewall Integration</span>
+                        </label>
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Firewall Driver</span></label>
+                        <select name="firewall_driver" class="select select-bordered w-full">
+                            <option value="ufw" {if ($config['firewall']['driver'] ?? '') === 'ufw'}selected{/if}>UFW</option>
+                            <option value="iptables" {if ($config['firewall']['driver'] ?? '') === 'iptables'}selected{/if}>iptables</option>
+                            <option value="nftables" {if ($config['firewall']['driver'] ?? '') === 'nftables'}selected{/if}>nftables</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Logging Settings</h2>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Max Log Files</span></label>
+                        <input type="number" name="logging_max_files" class="input input-bordered w-full" value="{$config['logging']['max_files'] ?? 7}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Notifications (Webhook)</h2>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">Webhook URL</span></label>
+                        <input type="text" name="webhook_url" class="input input-bordered w-full" value="{$config['notifications']['webhook']['url'] ?? ''}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-base-200 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title">Notifications (MQTT)</h2>
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-4">
+                            <input type="checkbox" name="mqtt_enabled" class="checkbox checkbox-primary" {if isset($config['notifications']['mqtt']['enabled']) && $config['notifications']['mqtt']['enabled']}checked{/if}>
+                            <span class="label-text">Enable MQTT</span>
+                        </label>
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">MQTT Host</span></label>
+                        <input type="text" name="mqtt_host" class="input input-bordered w-full" value="{$config['notifications']['mqtt']['host'] ?? 'localhost'}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">MQTT Port</span></label>
+                        <input type="number" name="mqtt_port" class="input input-bordered w-full" value="{$config['notifications']['mqtt']['port'] ?? 1883}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">MQTT Client ID</span></label>
+                        <input type="text" name="mqtt_client_id" class="input input-bordered w-full" value="{$config['notifications']['mqtt']['client_id'] ?? 'baluarte'}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">MQTT Username</span></label>
+                        <input type="text" name="mqtt_username" class="input input-bordered w-full" value="{$config['notifications']['mqtt']['username'] ?? ''}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">MQTT Password</span></label>
+                        <input type="password" name="mqtt_password" class="input input-bordered w-full" value="{$config['notifications']['mqtt']['password'] ?? ''}">
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label"><span class="label-text">MQTT Topic Prefix</span></label>
+                        <input type="text" name="mqtt_topic_prefix" class="input input-bordered w-full" value="{$config['notifications']['mqtt']['topic_prefix'] ?? 'baluarte'}">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-base-200 shadow-xl mt-6">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Log Patterns</h2>
+            <div id="patterns-container" class="space-y-4">
+                {foreach $config['patterns'] ?? [] as $id => $pattern}
+                <div class="p-4 bg-base-300 rounded-lg">
+                    <h3 class="font-bold mb-2 text-primary">Pattern: {$id}</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="form-control w-full">
+                            <label class="label"><span class="label-text text-xs">Regex</span></label>
+                            <input type="text" name="patterns[{$id}][regex]" class="input input-bordered input-sm w-full font-mono" value="{$pattern['regex']}">
+                        </div>
+                        <div class="form-control w-full">
+                            <label class="label"><span class="label-text text-xs">Reason</span></label>
+                            <input type="text" name="patterns[{$id}][reason]" class="input input-bordered input-sm w-full" value="{$pattern['reason'] ?? ''}">
+                        </div>
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-4">
+                                <span class="label-text text-xs">Enabled</span>
+                                <input type="checkbox" name="patterns[{$id}][enabled]" class="checkbox checkbox-xs" {if $pattern['enabled']}checked{/if}>
+                            </label>
+                        </div>
+                        <div class="form-control w-full">
+                            <label class="label"><span class="label-text text-xs">Format (optional)</span></label>
+                            <input type="text" name="patterns[{$id}][format]" class="input input-bordered input-sm w-full" value="{$pattern['format'] ?? ''}" placeholder="e.g. json">
+                        </div>
+                        <div class="form-control w-full">
+                            <label class="label"><span class="label-text text-xs">Field (optional)</span></label>
+                            <input type="text" name="patterns[{$id}][field]" class="input input-bordered input-sm w-full" value="{$pattern['field'] ?? ''}" placeholder="e.g. log">
+                        </div>
+                    </div>
+                </div>
+                {/foreach}
+            </div>
+
+            <div class="divider">Add New Pattern</div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text text-xs">ID (e.g. ssh_fail)</span></label>
+                    <input type="text" name="new_pattern_id" class="input input-bordered input-sm w-full">
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text text-xs">Regex</span></label>
+                    <input type="text" name="new_pattern_regex" class="input input-bordered input-sm w-full font-mono">
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text text-xs">Reason</span></label>
+                    <input type="text" name="new_pattern_reason" class="input input-bordered input-sm w-full">
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text text-xs">Format (optional)</span></label>
+                    <input type="text" name="new_pattern_format" class="input input-bordered input-sm w-full" placeholder="e.g. json">
+                </div>
+                <div class="form-control w-full">
+                    <label class="label"><span class="label-text text-xs">Field (optional)</span></label>
+                    <input type="text" name="new_pattern_field" class="input input-bordered input-sm w-full" placeholder="e.g. log">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-8 mb-12 flex justify-center">
+        <button type="submit" class="btn btn-primary btn-lg px-12">Save All Settings</button>
+    </div>
+</form>
+{/block}

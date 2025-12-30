@@ -1,0 +1,42 @@
+{layout 'layout.latte'}
+
+{block title}Active Bans{/block}
+
+{block content}
+<div class="card bg-base-200 shadow-xl">
+    <div class="card-body">
+        <h2 class="card-title mb-4">Active Bans</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+                <thead>
+                    <tr>
+                        <th>Target</th>
+                        <th>Type</th>
+                        <th>Banned At</th>
+                        <th>Expires At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {foreach $activeBansDetailed as $ban}
+                    <tr>
+                        <td><span class="font-mono">{$ban['target']}</span></td>
+                        <td><span class="badge badge-secondary">{$ban['type']}</span></td>
+                        <td><span class="text-xs">{$ban['banned_at']}</span></td>
+                        <td><span class="text-xs">{$ban['expires_at']}</span></td>
+                        <td>
+                            <form method="POST">
+                                <input type="hidden" name="action" value="remove_ban">
+                                <input type="hidden" name="ip" value="{$ban['target']}">
+                                <button type="submit" class="btn btn-xs btn-outline btn-success">Unban</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {/foreach}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{/block}

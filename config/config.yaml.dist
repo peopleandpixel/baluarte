@@ -5,6 +5,7 @@ logging:
   max_files: 7
 
 api:
+  jwt_secret: 'a-very-long-and-secure-secret-key-that-is-at-least-thirty-two-characters'
   abuseipdb:
     key: '' # Enter your AbuseIPDB API key here
 
@@ -18,6 +19,14 @@ firewall:
 notifications:
   webhook:
     url: '' # Enter your webhook URL here
+  mqtt:
+    enabled: false
+    host: 'localhost'
+    port: 1883
+    client_id: 'baluarte'
+    username: ''
+    password: ''
+    topic_prefix: 'baluarte'
 
 patterns:
   ssh_failed_login:

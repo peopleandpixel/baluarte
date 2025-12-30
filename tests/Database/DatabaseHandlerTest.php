@@ -30,12 +30,32 @@ class DatabaseHandlerTest extends TestCase
         $ips = $this->db->getAllDetectedIps();
 
         $this->assertCount(1, $ips);
-        $this->assertEquals('1.1.1.1', $ips[0]['ip_address']);
+        $this->assertEquals('1.1.1.1', $ips[0]['ip']);
         $this->assertEquals('Test Reason', $ips[0]['reason']);
         $this->assertEquals('test.log', $ips[0]['log_source']);
         $this->assertEquals('Germany', $ips[0]['country']);
         $this->assertEquals('Berlin', $ips[0]['city']);
         $this->assertEquals('Telekom', $ips[0]['isp']);
+    }
+
+    public function testGetAllDetectedIpsExcludesBanned(): void
+    {
+        $ip = '1.2.3.4';
+        $this->db->saveIp($ip, 'Brute force', 'ssh.log');
+        
+        // Before ban
+        $ips = $this->db->getAllDetectedIps();
+        $this->assertCount(1, $ips);
+        
+        // After ban
+        $this->db->addBan($ip, 60);
+        $ips = $this->db->getAllDetectedIps();
+        $this->assertCount(0, $ips);
+        
+        // After ban expires (using negative duration for test)
+        $this->db->addBan($ip, -1);
+        $ips = $this->db->getAllDetectedIps();
+        $this->assertCount(1, $ips);
     }
 
     public function testGetAttemptCount(): void

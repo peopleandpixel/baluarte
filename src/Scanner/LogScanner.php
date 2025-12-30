@@ -102,13 +102,15 @@ class LogScanner
      * @param string $filePath Path to the log file or 'journald'.
      * @param string $format Log format ('plain', 'json', or 'journal').
      * @param string|null $since Optional timestamp to scan from.
+     * @param int $offset Optional offset to start scanning from.
+     * @param bool $includeOffsets Whether to include file offsets in the generator output.
      * @return Generator Yields detected malicious entries.
      * @throws InvalidArgumentException If the log file is not found.
      */
-    public function scanFile(string $filePath, string $format = 'plain', ?string $since = null): Generator
+    public function scanFile(string $filePath, string $format = 'plain', ?string $since = null, int $offset = 0, bool $includeOffsets = false, bool $tail = false): Generator
     {
         if ($filePath === 'journald') {
-            yield from $this->scanJournal($since);
+            yield from $this->scanJournal($since, $tail);
             return;
         }
 
@@ -117,11 +119,19 @@ class LogScanner
             throw new InvalidArgumentException("Log file not found: $filePath");
         }
 
-        $this->logger->info("Starting scan of file: $filePath (Format: $format)");
+        if ($tail) {
+            yield from $this->tailFile($filePath, $format);
+            return;
+        }
+
+        $this->logger->info("Starting scan of file: $filePath (Format: $format, Offset: $offset)");
 
         $handle = fopen($filePath, 'r');
         if ($handle) {
-            yield from $this->scanHandle($handle, $filePath, $format);
+            if ($offset > 0) {
+                fseek($handle, $offset);
+            }
+            yield from $this->scanHandle($handle, $filePath, $format, $includeOffsets);
             fclose($handle);
         } else {
             $this->logger->error("Could not open file for reading: $filePath");
@@ -129,18 +139,42 @@ class LogScanner
     }
 
     /**
+     * Tails a file for real-time scanning.
+     * 
+     * @param string $filePath Path to the file.
+     * @param string $format Format type.
+     * @return Generator Yields detected malicious entries.
+     */
+    private function tailFile(string $filePath, string $format = 'plain'): Generator
+    {
+        $this->logger->info("Starting real-time tail of $filePath");
+        $command = 'tail -n 0 -f ' . escapeshellarg($filePath);
+        $handle = popen($command, 'r');
+        if ($handle) {
+            yield from $this->scanHandle($handle, $filePath, $format);
+            pclose($handle);
+        } else {
+            $this->logger->error("Could not open tail command for $filePath");
+        }
+    }
+
+    /**
      * Scans the systemd journal for malicious activity.
      * 
      * @param string|null $since Optional timestamp to scan from.
+     * @param bool $tail Whether to tail the journal in real-time.
      * @return Generator Yields detected malicious entries.
      */
-    private function scanJournal(?string $since = null): Generator
+    private function scanJournal(?string $since = null, bool $tail = false): Generator
     {
-        $this->logger->info("Starting scan of systemd journal" . ($since ? " since $since" : ""));
+        $this->logger->info("Starting scan of systemd journal" . ($since ? " since $since" : "") . ($tail ? " (tailing)" : ""));
 
         $command = 'journalctl -o json --no-pager';
         if ($since) {
             $command .= ' --since ' . escapeshellarg($since);
+        }
+        if ($tail) {
+            $command .= ' -f';
         }
 
         $handle = popen($command, 'r');
@@ -158,10 +192,14 @@ class LogScanner
      * @param resource $handle Open file handle.
      * @param string $source Source name for logging.
      * @param string $type Format type.
+     * @param bool $includeOffsets Whether to include file offsets.
      * @return Generator Yields detected malicious entries.
      */
-    private function scanHandle($handle, string $source, string $type = 'plain'): Generator
+    private function scanHandle($handle, string $source, string $type = 'plain', bool $includeOffsets = false): Generator
     {
+        $buffer = '';
+        $multiLinePatterns = array_filter($this->patterns, fn($p) => ($p['multiline'] ?? false) === true);
+        
         while (($line = fgets($handle)) !== false) {
             if ($type === 'journal') {
                 $data = json_decode($line, true);
@@ -183,8 +221,34 @@ class LogScanner
                     $this->logger->warning("Failed to decode JSON line in $source");
                 }
             } else {
-                yield from $this->scanLine($line, $source);
+                // Multi-line support
+                if (!empty($multiLinePatterns)) {
+                    $isStartOfNewEntry = false;
+                    foreach ($multiLinePatterns as $pattern) {
+                        if (isset($pattern['start_regex']) && preg_match($pattern['start_regex'], $line)) {
+                            $isStartOfNewEntry = true;
+                            break;
+                        }
+                    }
+
+                    if ($isStartOfNewEntry && !empty($buffer)) {
+                        yield from $this->scanLine($buffer, $source);
+                        $buffer = '';
+                    }
+                    $buffer .= $line;
+                } else {
+                    yield from $this->scanLine($line, $source);
+                }
             }
+            
+            // Yield the current offset so the caller can track it
+            if ($includeOffsets && $source !== 'journald') {
+                yield ['_offset' => ftell($handle)];
+            }
+        }
+
+        if (!empty($buffer)) {
+            yield from $this->scanLine($buffer, $source);
         }
     }
 
@@ -204,7 +268,13 @@ class LogScanner
             if (isset($pattern['format']) && $pattern['format'] === 'json') {
                 continue;
             }
-            if (preg_match($pattern['regex'], $line, $matches)) {
+            
+            $regex = $pattern['regex'];
+            if ($pattern['multiline'] ?? false) {
+                $regex .= 's'; // Add dotall modifier for multiline
+            }
+
+            if (preg_match($regex, $line, $matches)) {
                 $ip = $matches[1] ?? '0.0.0.0'; // Fallback if no IP capture group
                 $this->logger->debug("Match found: $ip ($type) in $source");
                 yield [

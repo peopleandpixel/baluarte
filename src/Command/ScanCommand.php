@@ -3,17 +3,9 @@
 namespace Baluarte\Command;
 
 use Baluarte\Database\DatabaseHandler;
-use Baluarte\Scanner\FirewallManager;
-use Baluarte\Scanner\LogScanner;
-use Baluarte\Scanner\NotificationManager;
 use Baluarte\Scanner\ReportGenerator;
-use Baluarte\Scanner\ReputationChecker;
-use Baluarte\Scanner\WhitelistManager;
-use Baluarte\Scanner\GeoIpService;
-use Baluarte\Event\ThreatDetectedEvent;
+use Baluarte\Service\ScanService;
 use Exception;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,32 +25,12 @@ class ScanCommand extends Command
     /**
      * ScanCommand constructor.
      * 
-     * @param LogScanner $scanner The log scanner service.
+     * @param ScanService $scanService The scan service.
      * @param DatabaseHandler $db The database handler service.
-     * @param ReputationChecker $reputationChecker The IP reputation checker service.
-     * @param FirewallManager $firewallManager The firewall manager service.
-     * @param NotificationManager $notificationManager The notification manager service.
-     * @param WhitelistManager $whitelistManager The whitelist manager service.
-     * @param GeoIpService $geoIpService The GeoIP lookup service.
-     * @param EventDispatcherInterface $eventDispatcher The event dispatcher service.
-     * @param LoggerInterface $logger The logger service.
-     * @param string $logFormat Default log format to use.
-     * @param array $threshold Detection threshold settings.
-     * @param int $banDuration Duration of bans in minutes.
      */
     public function __construct(
-        private readonly LogScanner               $scanner,
-        private readonly DatabaseHandler          $db,
-        private readonly ReputationChecker        $reputationChecker,
-        private readonly FirewallManager          $firewallManager,
-        private readonly NotificationManager      $notificationManager,
-        private readonly WhitelistManager         $whitelistManager,
-        private readonly GeoIpService             $geoIpService,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly LoggerInterface          $logger,
-        private readonly string                   $logFormat = 'plain',
-        private readonly array                    $threshold = ['attempts' => 1, 'minutes' => 60],
-        private readonly int $banDuration = 1440
+        private readonly ScanService     $scanService,
+        private readonly DatabaseHandler $db
     ) {
         parent::__construct('scan');
     }
@@ -72,7 +44,8 @@ class ScanCommand extends Command
             ->setDescription('Scan log files for malicious activity')
             ->addArgument('files', InputArgument::IS_ARRAY | InputArgument::OPTIONAL, 'Log files to scan (defaults to journald if empty)')
             ->addOption('report', 'r', InputOption::VALUE_NONE, 'Generate HTML report')
-            ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Database batch size', 100);
+            ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Database batch size', 100)
+            ->addOption('tail', 't', InputOption::VALUE_NONE, 'Tail log files for real-time scanning');
     }
 
     /**
@@ -91,13 +64,24 @@ class ScanCommand extends Command
         }
         $batchSize = (int)$input->getOption('batch-size');
         $generateReport = $input->getOption('report');
+        $tail = $input->getOption('tail');
 
         $io->title('Baluarte Log Scanner');
 
-        $this->unbanExpiredIps($io);
+        $unbanned = $this->scanService->unbanExpiredIps();
+        if (!empty($unbanned)) {
+            $io->section('Unblocking expired targets');
+            foreach ($unbanned as $ip) {
+                $io->text("Unblocked $ip (ban expired)");
+            }
+        }
 
         $lastScan = $this->db->getSetting('last_scan_timestamp');
         $currentScanTimestamp = date('Y-m-d H:i:s');
+
+        if ($tail) {
+            $io->info('Real-time scanning enabled.');
+        }
 
         if (function_exists('pcntl_fork') && count($logFiles) > 1) {
             $io->note('Parallel scanning enabled.');
@@ -110,7 +94,7 @@ class ScanCommand extends Command
                 } elseif ($pid) {
                     $pids[] = $pid;
                 } else {
-                    $this->scanAndSave($logFile, $batchSize, $io, $lastScan);
+                    $this->scanAndSave($logFile, $batchSize, $io, $lastScan, $tail);
                     exit(0);
                 }
             }
@@ -120,7 +104,7 @@ class ScanCommand extends Command
             }
         } else {
             foreach ($logFiles as $logFile) {
-                $this->scanAndSave($logFile, $batchSize, $io, $lastScan);
+                $this->scanAndSave($logFile, $batchSize, $io, $lastScan, $tail);
             }
         }
 
@@ -157,93 +141,16 @@ class ScanCommand extends Command
      * @param int $batchSize Number of entries to save in one batch.
      * @param SymfonyStyle $io SymfonyStyle instance for output.
      * @param string|null $since Optional timestamp to scan from.
+     * @param bool $tail Whether to tail the log file.
      */
-    private function scanAndSave(string $logFile, int $batchSize, SymfonyStyle $io, ?string $since = null): void
+    private function scanAndSave(string $logFile, int $batchSize, SymfonyStyle $io, ?string $since = null, bool $tail = false): void
     {
-        $io->text("Scanning $logFile" . ($since ? " since $since" : "") . "...");
+        $io->text("Scanning $logFile" . ($since ? " since $since" : "") . ($tail ? " (tailing)" : "") . "...");
         try {
-            $results = [];
-            $totalSaved = 0;
-
-            foreach ($this->scanner->scanFile($logFile, $this->logFormat, $since) as $result) {
-                $ip = $result['ip'];
-
-                if ($this->whitelistManager->isWhitelisted($ip)) {
-                    $this->logger->info("IP $ip is whitelisted, skipping.");
-                    continue;
-                }
-
-                // GeoIP lookup
-                $result['geo'] = $this->geoIpService->lookup($ip);
-                
-                // Reputation check
-                $this->reputationChecker->checkIp($ip);
-                
-                // Threshold-based blocking
-                $count = $this->db->getAttemptCount($ip, $this->threshold['minutes'] ?? 60);
-                if ($count + 1 >= ($this->threshold['attempts'] ?? 1)) {
-                    // Dispatch event
-                    $this->eventDispatcher->dispatch(
-                        new ThreatDetectedEvent($ip, $result['reason'], (array)$result),
-                        ThreatDetectedEvent::NAME
-                    );
-
-                    // Firewall integration
-                    if ($this->firewallManager->blockIp($ip)) {
-                        $this->db->addBan($ip, $this->banDuration);
-                    }
-                } else {
-                    $this->logger->info("IP $ip below threshold (" . ($count + 1) . "/" . ($this->threshold['attempts'] ?? 1) . "), not blocking yet.");
-                }
-
-                $results[] = $result;
-                if (count($results) >= $batchSize) {
-                    $saved = $this->db->saveIps($results);
-                    $totalSaved += $saved;
-                    if ($saved > 0) {
-                        $this->notificationManager->notify("Detected $saved new malicious entries from $logFile.");
-                    }
-                    $results = [];
-                }
-            }
-
-            if (!empty($results)) {
-                $saved = $this->db->saveIps($results);
-                $totalSaved += $saved;
-                if ($saved > 0) {
-                    $this->notificationManager->notify("Detected $saved new malicious entries from $logFile.");
-                }
-            }
-
+            $totalSaved = $this->scanService->scanFile($logFile, $batchSize, $since, $tail);
             $io->success("Found and saved $totalSaved new malicious events from $logFile.");
         } catch (Exception $e) {
             $io->error("Error scanning $logFile: " . $e->getMessage());
-            $this->logger->error("Error scanning $logFile: " . $e->getMessage());
-        }
-    }
-
-    /**
-     * Unbans IPs whose ban period has expired.
-     * 
-     * @param SymfonyStyle $io SymfonyStyle instance for output.
-     */
-    private function unbanExpiredIps(SymfonyStyle $io): void
-    {
-        $expiredIps = $this->db->getExpiredBans(); // Note: getExpiredBans returns ip_address column only currently
-        if (!empty($expiredIps)) {
-            $io->section('Unblocking expired targets');
-            foreach ($expiredIps as $ip) {
-                // Here we should ideally know the type, but unblockIp currently handles CIDR as well if the driver supports it.
-                // For countries, we might need a more specific call.
-                if ($this->firewallManager->unblockIp($ip)) {
-                    $this->db->removeBan($ip);
-                    $io->text("Unblocked $ip (ban expired)");
-                    $this->logger->info("Unblocked $ip (ban expired)");
-                } else {
-                    $io->error("Failed to unblock $ip");
-                    $this->logger->error("Failed to unblock $ip");
-                }
-            }
         }
     }
 }

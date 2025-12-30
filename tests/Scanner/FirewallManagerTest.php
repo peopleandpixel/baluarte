@@ -13,7 +13,7 @@ class FirewallManagerTest extends TestCase
         $driver = $this->createMock(FirewallDriverInterface::class);
         $driver->expects($this->never())->method('blockIp');
 
-        $manager = new FirewallManager(false, $driver);
+        $manager = new FirewallManager(false, [$driver]);
         $this->assertFalse($manager->blockIp('1.2.3.4'));
     }
 
@@ -25,7 +25,7 @@ class FirewallManagerTest extends TestCase
             ->with('1.2.3.4')
             ->willReturn(true);
 
-        $manager = new FirewallManager(true, $driver);
+        $manager = new FirewallManager(true, [$driver]);
         $this->assertTrue($manager->blockIp('1.2.3.4'));
     }
 
@@ -37,16 +37,28 @@ class FirewallManagerTest extends TestCase
             ->with('1.2.3.4')
             ->willReturn(true);
 
-        $manager = new FirewallManager(true, $driver);
+        $manager = new FirewallManager(true, [$driver]);
         $this->assertTrue($manager->unblockIp('1.2.3.4'));
     }
 
-    public function testGetDriverName()
+    public function testGetDriverNames()
     {
         $driver = $this->createStub(FirewallDriverInterface::class);
         $driver->method('getName')->willReturn('test-driver');
 
-        $manager = new FirewallManager(true, $driver);
-        $this->assertEquals('test-driver', $manager->getDriverName());
+        $manager = new FirewallManager(true, [$driver]);
+        $this->assertEquals(['test-driver'], $manager->getDriverNames());
+    }
+
+    public function testMultipleDrivers()
+    {
+        $driver1 = $this->createMock(FirewallDriverInterface::class);
+        $driver1->expects($this->once())->method('blockIp')->with('1.2.3.4')->willReturn(true);
+
+        $driver2 = $this->createMock(FirewallDriverInterface::class);
+        $driver2->expects($this->once())->method('blockIp')->with('1.2.3.4')->willReturn(true);
+
+        $manager = new FirewallManager(true, [$driver1, $driver2]);
+        $this->assertTrue($manager->blockIp('1.2.3.4'));
     }
 }

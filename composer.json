@@ -3,7 +3,7 @@
   "description": "Ban unwanted hosts, domains and IPs from your network with Baluarte. Godless easy to use.",
   "type": "project",
   "license": "GPL-3.0-or-later",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "require": {
     "php": ">=8.4",
     "symfony/yaml": "^8.0",
@@ -16,7 +16,11 @@
     "geoip2/geoip2": "^3.3",
     "symfony/event-dispatcher": "^8.0",
     "doctrine/dbal": "^4.4",
-    "ext-pcntl": "*"
+    "ext-pcntl": "*",
+    "symfony/cache": "^8.0",
+    "php-mqtt/client": "^2.3",
+    "latte/latte": "^3.1",
+    "firebase/php-jwt": "^7.0"
   },
 
   "autoload": {
@@ -34,7 +38,8 @@
     "secure-http": false
   },
   "require-dev": {
-    "phpunit/phpunit": "^12.5"
+    "phpunit/phpunit": "^12.5",
+    "phpstan/phpstan": "^2.1"
   },
   "scripts": {
     "serve": "php baluarte.php serve"

@@ -1,0 +1,84 @@
+{layout 'layout.latte'}
+
+{block title}Dashboard{/block}
+
+{block content}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="stats shadow bg-primary text-primary-content">
+        <div class="stat">
+            <div class="stat-title text-primary-content opacity-70">Active Bans</div>
+            <div class="stat-value">{$activeBansCount}</div>
+            <div class="stat-figure text-primary-content">
+                <i class="bi bi-shield-slash text-3xl"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stats shadow bg-warning text-warning-content">
+        <div class="stat">
+            <div class="stat-title text-warning-content opacity-70">Threats Detected</div>
+            <div class="stat-value">{$detectedIpsCount}</div>
+            <div class="stat-figure text-warning-content">
+                <i class="bi bi-exclamation-triangle text-3xl"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card bg-base-200 shadow-xl">
+    <div class="card-body">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="card-title">Recent Threats Detected</h2>
+            <a href="/blocked-ips" target="_blank" class="btn btn-sm btn-outline">View Blocklist</a>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="table table-zebra w-full">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Country</th>
+                        <th>Reason</th>
+                        <th>Detected At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {foreach $detectedIps as $threat}
+                    <tr>
+                        <td><span class="font-mono">{$threat['ip']}</span></td>
+                        <td>
+                            {if isset($threat['country']) && $threat['country'] !== 'Unknown'}
+                                <span class="badge badge-ghost">{$threat['country']}</span>
+                            {else}
+                                <span class="opacity-50">Unknown</span>
+                            {/if}
+                        </td>
+                        <td>{$threat['reason']}</td>
+                        <td><span class="text-xs">{$threat['detected_at']}</span></td>
+                        <td>
+                            <div class="flex gap-2">
+                                <form method="POST">
+                                    <input type="hidden" name="action" value="add_ban">
+                                    <input type="hidden" name="target" value="{$threat['ip']}">
+                                    <input type="hidden" name="type" value="ip">
+                                    <button type="submit" class="btn btn-xs btn-error">Ban IP</button>
+                                </form>
+                                {if isset($threat['country']) && $threat['country'] !== 'Unknown'}
+                                <form method="POST">
+                                    <input type="hidden" name="action" value="add_ban">
+                                    <input type="hidden" name="target_country" value="{$threat['country']}">
+                                    <input type="hidden" name="type" value="country">
+                                    <button type="submit" class="btn btn-xs btn-outline btn-error">Ban Country</button>
+                                </form>
+                                {/if}
+                            </div>
+                        </td>
+                    </tr>
+                    {/foreach}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{/block}
