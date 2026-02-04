@@ -45,7 +45,8 @@ class ScanCommand extends Command
             ->addArgument('files', InputArgument::IS_ARRAY | InputArgument::OPTIONAL, 'Log files to scan (defaults to journald if empty)')
             ->addOption('report', 'r', InputOption::VALUE_NONE, 'Generate HTML report')
             ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Database batch size', 100)
-            ->addOption('tail', 't', InputOption::VALUE_NONE, 'Tail log files for real-time scanning');
+            ->addOption('tail', 't', InputOption::VALUE_NONE, 'Tail log files for real-time scanning')
+            ->addOption('dry-run', 'd', InputOption::VALUE_NONE, 'Run without actually blocking IPs');
     }
 
     /**
@@ -65,8 +66,14 @@ class ScanCommand extends Command
         $batchSize = (int)$input->getOption('batch-size');
         $generateReport = $input->getOption('report');
         $tail = $input->getOption('tail');
+        $dryRun = $input->getOption('dry-run');
 
         $io->title('Baluarte Log Scanner');
+
+        if ($dryRun) {
+            $io->warning('Dry-run mode enabled. No IPs will be blocked.');
+            $this->scanService->setDryRun(true);
+        }
 
         $unbanned = $this->scanService->unbanExpiredIps();
         if (!empty($unbanned)) {
@@ -74,6 +81,11 @@ class ScanCommand extends Command
             foreach ($unbanned as $ip) {
                 $io->text("Unblocked $ip (ban expired)");
             }
+        }
+
+        $cleanedUp = $this->scanService->cleanupOldEntries();
+        if ($cleanedUp > 0) {
+            $io->note("Cleaned up $cleanedUp old malicious entries from database.");
         }
 
         $lastScan = $this->db->getSetting('last_scan_timestamp');

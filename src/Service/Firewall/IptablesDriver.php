@@ -36,6 +36,28 @@ class IptablesDriver implements FirewallDriverInterface
     /**
      * @inheritDoc
      */
+    public function blockRange(string $target): bool
+    {
+        $cmd = sprintf('sudo iptables -A INPUT -s %s -j DROP', escapeshellarg($target));
+        exec($cmd, $output, $returnVar);
+
+        return $returnVar === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function unblockRange(string $target): bool
+    {
+        $cmd = sprintf('sudo iptables -D INPUT -s %s -j DROP', escapeshellarg($target));
+        exec($cmd, $output, $returnVar);
+
+        return $returnVar === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function getName(): string
     {
         return 'iptables';

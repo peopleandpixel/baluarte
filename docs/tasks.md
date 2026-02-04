@@ -2,6 +2,12 @@
 
 This document tracks potential improvements, optimizations, and features for Baluarte.
 
+## Recently Implemented Improvements
+- [x] Full country-level blocking support across all firewall drivers (UFW, IPTables, Nftables).
+- [x] Added `blockRange` and `unblockRange` methods to `FirewallDriverInterface`.
+- [x] Implemented "Dry-run" mode in `ScanCommand` and `ScanService` to test patterns without blocking.
+- [x] Added more security-focused log patterns for WordPress, PHPUnit RCE, and web shell probes.
+
 ## Performance Optimizations
 - [x] Implement bulk inserts for detected IPs to reduce database transactions.
 - [x] Optimize `LogScanner` to read large files more efficiently (e.g., using a fixed-size buffer if memory becomes an issue).
@@ -33,6 +39,10 @@ This document tracks potential improvements, optimizations, and features for Bal
 - [x] Implement more advanced pattern matching (e.g., multi-line logs, look-ahead/look-behind).
 - [x] Support for rate-limiting notifications to prevent alert fatigue.
 - [x] Add support for CIDR ranges in the Whitelist.
+- [x] Implement a Honey Pot listener (e.g., fake SSH or HTTP) to catch and block proactive attackers.
+- [x] Add support for MQTT notifications for integration with home automation or IoT monitoring.
+- [x] Implement "Country Whitelisting" to allow traffic only from specific regions.
+- [x] Support for DNSBL (DNS-based Blackhole List) lookups for faster reputation checks.
 
 ## Code Quality & Refactoring
 - [x] Implement Dependency Injection for `DatabaseHandler` and `LogScanner` in `baluarte.php`.
@@ -46,11 +56,20 @@ This document tracks potential improvements, optimizations, and features for Bal
 - [x] Implement a proper Configuration object instead of passing around arrays.
 - [x] Refactor `ScanCommand` into smaller, more focused service classes.
 - [x] Add static analysis tools (e.g., PHPStan, Psalm) to the CI/CD pipeline.
+- [x] Implement automated database migrations for schema updates.
+- [x] Add more comprehensive integration tests for the full scan-to-block pipeline.
 
 ## Infrastructure & Deployment
 - [x] Create a `Dockerfile` and `docker-compose.yml` for containerized deployment.
 - [x] Provide a systemd unit file for running Baluarte as a background daemon.
 - [x] Implement log rotation for `baluarte.log`.
+- [x] Implement automatic database cleanup for old entries (e.g., remove detections older than 30 days).
+- [x] Add support for Redis as an alternative backend for high-traffic environments.
+
+## Dashboard & UI
+- [x] Add interactive maps to the dashboard for visual threat distribution.
+- [x] Implement real-time updates for the dashboard using WebSockets or SSE.
+- [x] Add detailed drill-down views for specific IP addresses (GeoIP history, previous detections).
 
 ## Documentation
 - [x] Add a comprehensive `README.md` with installation and usage instructions.

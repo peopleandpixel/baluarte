@@ -12,15 +12,18 @@ namespace Baluarte\Scanner;
 class WhitelistManager
 {
     private array $whitelistedIps;
+    private array $whitelistedCountries;
 
     /**
      * WhitelistManager constructor.
      * 
      * @param array $whitelistedIps Array of whitelisted IP addresses.
+     * @param array $whitelistedCountries Array of whitelisted country codes (ISO 3166-1 alpha-2).
      */
-    public function __construct(array $whitelistedIps = [])
+    public function __construct(array $whitelistedIps = [], array $whitelistedCountries = [])
     {
         $this->whitelistedIps = $whitelistedIps;
+        $this->whitelistedCountries = array_map('strtoupper', $whitelistedCountries);
     }
 
     /**
@@ -38,6 +41,21 @@ class WhitelistManager
         }
 
         return false;
+    }
+
+    /**
+     * Checks if a country code is whitelisted.
+     * 
+     * @param string|null $countryCode The ISO 3166-1 alpha-2 country code.
+     * @return bool True if whitelisted, false otherwise.
+     */
+    public function isCountryWhitelisted(?string $countryCode): bool
+    {
+        if ($countryCode === null) {
+            return false;
+        }
+
+        return in_array(strtoupper($countryCode), $this->whitelistedCountries, true);
     }
 
     /**

@@ -1,6 +1,13 @@
 database:
   path: 'baluarte.sqlite'
 
+cache:
+  backend: 'filesystem' # 'filesystem' or 'redis'
+  namespace: 'baluarte'
+  default_lifetime: 0
+  redis:
+    dsn: 'redis://localhost:6379'
+
 logging:
   max_files: 7
 
@@ -8,6 +15,10 @@ api:
   jwt_secret: 'a-very-long-and-secure-secret-key-that-is-at-least-thirty-two-characters'
   abuseipdb:
     key: '' # Enter your AbuseIPDB API key here
+  dnsbl:
+    - 'zen.spamhaus.org'
+    - 'bl.spamcop.net'
+    - 'dnsbl.sorbs.net'
 
 geoip:
   database_path: 'data/GeoLite2-City.mmdb'
@@ -15,6 +26,13 @@ geoip:
 firewall:
   enabled: false
   driver: 'ufw' # Can be 'ufw', 'iptables', or 'nftables' (default: ufw)
+
+whitelist:
+  ips:
+    - '127.0.0.1'
+  countries:
+    - 'BE' # Belgium
+    - 'US' # United States
 
 notifications:
   webhook:
@@ -83,8 +101,33 @@ patterns:
     regex: '/sudo:.*auth failure;.*rhost=(\d+\.\d+\.\d+\.\d+)/'
     reason: 'Sudo authentication failure'
     enabled: true
+  wordpress_xmlrpc:
+    regex: '/(\d+\.\d+\.\d+\.\d+) .* "POST \/xmlrpc\.php HTTP\/.*" 200/i'
+    reason: 'WordPress XML-RPC abuse'
+    enabled: true
+  wordpress_wp_login:
+    regex: '/(\d+\.\d+\.\d+\.\d+) .* "POST \/wp-login\.php HTTP\/.*" 200/i'
+    reason: 'WordPress brute force attempt'
+    enabled: true
+  php_unit_rce:
+    regex: '/(\d+\.\d+\.\d+\.\d+) .* "GET \/vendor\/phpunit\/phpunit\/src\/Util\/PHP\/eval-stdin\.php HTTP\/.*" 200/i'
+    reason: 'PHPUnit RCE exploit attempt'
+    enabled: true
+  generic_web_shell:
+    regex: '/(\d+\.\d+\.\d+\.\d+) .* "GET .*(?:shell|cmd|sh|bash|webshell)\.php.* HTTP\/.*" 200/i'
+    reason: 'Web shell probe'
+    enabled: true
 
 gui:
   password_hash: '' # Leave empty to disable password protection
   two_factor_secret: '' # Leave empty to disable 2FA
   two_factor_enabled: false
+
+honeypot:
+  enabled: false
+  bind: '0.0.0.0'
+  http_port: 8081
+  threshold: 3
+  window_minutes: 5
+  ban_minutes: 1440
+  log_thinning_ttl: 15

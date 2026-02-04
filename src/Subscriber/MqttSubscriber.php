@@ -4,6 +4,7 @@ namespace Baluarte\Subscriber;
 
 use Baluarte\Event\BanAddedEvent;
 use Baluarte\Event\BanRemovedEvent;
+use Baluarte\Event\ThreatDetectedEvent;
 use Baluarte\Service\MqttService;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -36,6 +37,7 @@ class MqttSubscriber implements EventSubscriberInterface
         return [
             BanAddedEvent::NAME => 'onBanAdded',
             BanRemovedEvent::NAME => 'onBanRemoved',
+            ThreatDetectedEvent::NAME => 'onThreatDetected',
         ];
     }
 
@@ -86,5 +88,27 @@ class MqttSubscriber implements EventSubscriberInterface
         // We don't necessarily know the type here without extra info, 
         // but we can at least clear the retained message if we had one.
         // For simplicity, we just push the event.
+    }
+
+    /**
+     * Handles the threat.detected event.
+     * 
+     * @param ThreatDetectedEvent $event
+     */
+    public function onThreatDetected(ThreatDetectedEvent $event): void
+    {
+        if (!$this->enabled) {
+            return;
+        }
+
+        $payload = json_encode([
+            'event' => 'threat_detected',
+            'ip' => $event->getIp(),
+            'reason' => $event->getReason(),
+            'metadata' => $event->getMetadata(),
+            'timestamp' => date('c'),
+        ]);
+
+        $this->mqttService->publish('events/threat_detected', $payload);
     }
 }

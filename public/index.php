@@ -10,6 +10,8 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use RobThree\Auth\TwoFactorAuth;
 use RobThree\Auth\Providers\Qr\GoogleChartsQrCodeProvider;
+use Baluarte\I18n\Translator as AppTranslator;
+use Latte\Essential\TranslatorExtension;
 
 session_start();
 
@@ -28,9 +30,38 @@ if (!str_starts_with($dbPath, '/')) {
 $dbHandler = new DatabaseHandler($dbPath);
 $countriesList = require __DIR__ . '/../src/countries.php';
 
+// i18n: determine locale
+$defaultLocale = $config['i18n']['default_locale'] ?? 'en';
+$availableLocales = $config['i18n']['available_locales'] ?? [
+    'en','de','fr','es','it','pt','nl','sv','no','da','fi','pl','cs','sk','sl','hr','sr','ro','bg','hu','el','et','lv','lt','is','ga','mt','uk','ru','sq','mk','bs'
+];
+
+if (isset($_GET['lang'])) {
+    $_SESSION['locale'] = $_GET['lang'];
+}
+
+$locale = $_SESSION['locale'] ?? null;
+if (!$locale) {
+    $accept = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
+    if ($accept) {
+        if (preg_match('~([a-zA-Z]{2})(?:-[a-zA-Z]{2})?~', $accept, $m)) {
+            $locale = strtolower($m[1]);
+        }
+    }
+}
+if (!$locale || !in_array($locale, $availableLocales, true)) {
+    $locale = $defaultLocale;
+}
+
+$localesPath = __DIR__ . '/../locales';
+$translator = new AppTranslator($locale, $localesPath, $defaultLocale);
+
 // Handle POST actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    if ($action === '' && isset($_POST['regenerate_2fa'])) {
+        $action = 'update_gui_settings';
+    }
     if ($action === 'add_ban') {
         $type = $_POST['type'] ?? 'ip';
         $target = ($type === 'country') ? ($_POST['target_country'] ?? '') : ($_POST['target'] ?? '');
@@ -125,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $newConfig['gui']['two_factor_enabled'] = isset($_POST['two_factor_enabled']);
+        $newConfig['gui']['theme'] = $_POST['theme'] ?? 'baluarte';
         
         if (isset($_POST['regenerate_2fa'])) {
             $tfa = new TwoFactorAuth(new GoogleChartsQrCodeProvider());
@@ -167,7 +199,7 @@ if (!empty($passwordHash)) {
                         header('Location: /');
                         exit;
                     } else {
-                        $error = 'Invalid 2FA code';
+                        $error = 'login.error.2fa';
                     }
                 } else {
                     $_SESSION['authenticated'] = true;
@@ -175,16 +207,19 @@ if (!empty($passwordHash)) {
                     exit;
                 }
             } else {
-                $error = 'Invalid password';
+                $error = 'login.error.password';
             }
         }
 
         $latte = new Latte\Engine;
         $latte->setTempDirectory(__DIR__ . '/../data/cache');
+        $latte->addExtension(new TranslatorExtension([$translator, 'translate'], $translator->getLocale()));
         $latte->render(__DIR__ . '/../templates/login.latte', [
             'twoFactorEnabled' => $twoFactorEnabled,
             'error' => $error,
             'config' => $config,
+            'locale' => $translator->getLocale(),
+            'availableLocales' => $availableLocales,
         ]);
         exit;
     }
@@ -192,6 +227,7 @@ if (!empty($passwordHash)) {
 
 $latte = new Latte\Engine;
 $latte->setTempDirectory(__DIR__ . '/../data/cache');
+$latte->addExtension(new TranslatorExtension([$translator, 'translate'], $translator->getLocale()));
 
 // API Router
 if (str_starts_with($uri, '/api/')) {
@@ -276,6 +312,52 @@ if (str_starts_with($uri, '/api/')) {
     }
 }
 
+if ($uri === '/sse-threats') {
+    header('Content-Type: text/event-stream');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+    header('X-Accel-Buffering: no'); // Disable buffering for Nginx
+
+    $lastId = (int)($_GET['lastId'] ?? 0);
+    
+    // We'll poll the database for new entries every 2 seconds
+    while (true) {
+        if (connection_aborted()) break;
+
+        try {
+            $queryBuilder = $dbHandler->getConnection()->createQueryBuilder();
+            $queryBuilder
+                ->select('id', 'ip_address as ip', 'reason', 'log_source', 'country', 'city', 'isp', 'latitude', 'longitude', 'detected_at')
+                ->from('malicious_ips')
+                ->where('id > :lastId')
+                ->orderBy('id', 'ASC')
+                ->setParameter('lastId', $lastId);
+
+            $newThreats = $queryBuilder->executeQuery()->fetchAllAssociative();
+
+            if (!empty($newThreats)) {
+                foreach ($newThreats as $threat) {
+                    echo "data: " . json_encode($threat) . "\n\n";
+                    $lastId = max($lastId, (int)$threat['id']);
+                }
+                ob_flush();
+                flush();
+            } else {
+                // Send keep-alive comment
+                echo ": keep-alive\n\n";
+                ob_flush();
+                flush();
+            }
+        } catch (\Exception $e) {
+            // Log or handle error
+            break;
+        }
+
+        sleep(2);
+    }
+    exit;
+}
+
 if ($uri === '/blocked-ips') {
     try {
         $ips = $dbHandler->getActiveBansByType('ip');
@@ -323,9 +405,29 @@ try {
     $activeBansCount = 0;
 }
 
+$ipDetails = null;
+if ($page === 'ip-details') {
+    $ip = $_GET['ip'] ?? '';
+    if ($ip) {
+        try {
+            $history = $dbHandler->getIpHistory($ip);
+            $ban = $dbHandler->getBanDetails($ip);
+            if (!empty($history)) {
+                $ipDetails = [
+                    'ip' => $ip,
+                    'history' => $history,
+                    'ban' => $ban,
+                    'last_geo' => $history[0] ?? null
+                ];
+            }
+        } catch (\Exception $e) {}
+    }
+}
+
 $template = match ($page) {
     'settings' => 'settings.latte',
     'bans' => 'bans.latte',
+    'ip-details' => 'ip-details.latte',
     default => 'dashboard.latte',
 };
 
@@ -333,13 +435,16 @@ try {
     $latte->render(__DIR__ . '/../templates/' . $template, [
         'page' => $page,
         'config' => $config,
-        'detectedIps' => $detectedIps,
+        'detectedIps' => json_encode($detectedIps),
         'detectedIpsCount' => $detectedIpsCount,
         'activeBansDetailed' => $activeBansDetailed,
         'activeBansCount' => $activeBansCount,
         'countriesList' => $countriesList,
         'qrCode' => (!empty($config['gui']['two_factor_secret'])) ? new TwoFactorAuth(new GoogleChartsQrCodeProvider())->getQRCodeImageAsDataUri('Baluarte', $config['gui']['two_factor_secret']) : null,
         'twoFactorSecret' => $config['gui']['two_factor_secret'] ?? null,
+        'ipDetails' => $ipDetails,
+                'locale' => $translator->getLocale(),
+                'availableLocales' => $availableLocales,
     ]);
 } catch (TwoFactorAuthException $e) {
 

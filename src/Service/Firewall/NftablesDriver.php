@@ -38,6 +38,28 @@ class NftablesDriver implements FirewallDriverInterface
     /**
      * @inheritDoc
      */
+    public function blockRange(string $target): bool
+    {
+        $cmd = sprintf('sudo nft add element inet filter denylist { %s }', escapeshellarg($target));
+        exec($cmd, $output, $returnVar);
+
+        return $returnVar === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function unblockRange(string $target): bool
+    {
+        $cmd = sprintf('sudo nft delete element inet filter denylist { %s }', escapeshellarg($target));
+        exec($cmd, $output, $returnVar);
+
+        return $returnVar === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function getName(): string
     {
         return 'nftables';

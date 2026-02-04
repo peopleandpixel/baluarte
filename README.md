@@ -128,6 +128,10 @@ The main configuration file is `config/config.yaml`.
 - `firewall.enabled`: Set to `true` to enable automatic blocking.
 - `firewall.driver`: Choose between `ufw`, `iptables`, or `nftables`.
 - `notifications.mqtt`: Configure MQTT broker details and topics.
+    - `enabled`: Set to `true` to enable MQTT notifications.
+    - `host`: MQTT broker address.
+    - `port`: MQTT broker port (default: 1883).
+    - `topic_prefix`: Prefix for all MQTT topics (default: `baluarte`).
 - `gui.password_hash`: Password for dashboard access (BCrypt).
 - `gui.two_factor_enabled`: Enable/disable 2FA.
 - `patterns`: Define custom regex patterns for detection.

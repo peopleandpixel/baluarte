@@ -1,36 +1,51 @@
 {layout 'layout.latte'}
 
-{block title}Active Bans{/block}
+{block title}{_'bans.title'}{/block}
 
 {block content}
 <div class="card bg-base-200 shadow-xl">
     <div class="card-body">
-        <h2 class="card-title mb-4">Active Bans</h2>
+        <h2 class="card-title mb-4">{_'bans.title'}</h2>
         
         <div class="overflow-x-auto">
             <table class="table table-zebra w-full">
                 <thead>
                     <tr>
-                        <th>Target</th>
-                        <th>Type</th>
-                        <th>Banned At</th>
-                        <th>Expires At</th>
-                        <th>Actions</th>
+                        <th>{_'bans.table.target'}</th>
+                        <th>{_'bans.table.type'}</th>
+                        <th>{_'bans.table.banned_at'}</th>
+                        <th>{_'bans.table.expires_at'}</th>
+                        <th>{_'bans.table.actions'}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {foreach $activeBansDetailed as $ban}
+                    {foreach $activeBansDetailed as $banItem}
                     <tr>
-                        <td><span class="font-mono">{$ban['target']}</span></td>
-                        <td><span class="badge badge-secondary">{$ban['type']}</span></td>
-                        <td><span class="text-xs">{$ban['banned_at']}</span></td>
-                        <td><span class="text-xs">{$ban['expires_at']}</span></td>
                         <td>
-                            <form method="POST">
-                                <input type="hidden" name="action" value="remove_ban">
-                                <input type="hidden" name="ip" value="{$ban['target']}">
-                                <button type="submit" class="btn btn-xs btn-outline btn-success">Unban</button>
-                            </form>
+                            {if $banItem['type'] === 'ip'}
+                                <a href="/?page=ip-details&ip={$banItem['target']}" class="hover:underline">
+                                    <span class="font-mono">{$banItem['target']}</span>
+                                </a>
+                            {else}
+                                <span class="font-mono">{$banItem['target']}</span>
+                            {/if}
+                        </td>
+                        <td><span class="badge badge-secondary">{$banItem['type']}</span></td>
+                        <td><span class="text-xs">{$banItem['banned_at']}</span></td>
+                        <td><span class="text-xs">{$banItem['expires_at']}</span></td>
+                        <td>
+                            <div class="flex gap-2">
+                                {if $banItem['type'] === 'ip'}
+                                <a href="/?page=ip-details&ip={$banItem['target']}" class="btn btn-xs btn-ghost">
+                                    <i class="bi bi-info-circle"></i> {_'dashboard.actions.details'}
+                                </a>
+                                {/if}
+                                <form method="POST">
+                                    <input type="hidden" name="action" value="remove_ban">
+                                    <input type="hidden" name="ip" value="{$banItem['target']}">
+                                    <button type="submit" class="btn btn-xs btn-outline btn-success">{_'bans.actions.unban'}</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {/foreach}

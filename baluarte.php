@@ -8,17 +8,21 @@ use Baluarte\Service\Configuration;
 use Baluarte\Command\ScanCommand;
 use Baluarte\Command\ServeCommand;
 use Baluarte\Command\ExportCommand;
+use Baluarte\Command\MigrateCommand;
 use Baluarte\Command\MqttListenCommand;
 use Baluarte\Database\DatabaseHandler;
 use Baluarte\Service\ExportService;
 use Baluarte\Service\MqttService;
+use Baluarte\Scanner\DnsblService;
 use Baluarte\Scanner\GeoIpService;
 use Baluarte\Scanner\WhitelistManager;
 use Baluarte\Service\Firewall\IptablesDriver;
 use Baluarte\Service\Firewall\NftablesDriver;
 use Baluarte\Service\Firewall\UfwDriver;
+use Baluarte\Service\HoneypotService;
 use Baluarte\Subscriber\LoggerSubscriber;
 use Baluarte\Subscriber\MqttSubscriber;
+use Baluarte\Command\HoneypotHttpCommand;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Baluarte\Scanner\FirewallManager;
@@ -44,11 +48,39 @@ $containerBuilder = new ContainerBuilder();
 $containerBuilder->register('config', Configuration::class)
     ->addArgument($config);
 
-// Cache
-$containerBuilder->register('cache', FilesystemAdapter::class)
-    ->addArgument('baluarte')
-    ->addArgument(0)
-    ->addArgument(__DIR__ . '/data/cache');
+// Cache (Filesystem by default, optional Redis backend)
+if (($config['cache']['backend'] ?? 'filesystem') === 'redis') {
+    try {
+        $redisDsn = $config['cache']['redis']['dsn'] ?? 'redis://localhost:6379';
+        $namespace = $config['cache']['namespace'] ?? 'baluarte';
+        $defaultLifetime = (int)($config['cache']['default_lifetime'] ?? 0);
+
+        // Use RedisAdapter if available
+        if (class_exists(\Symfony\Component\Cache\Adapter\RedisAdapter::class)) {
+            $containerBuilder->register('cache', \Symfony\Component\Cache\Adapter\RedisAdapter::class)
+                ->addArgument(\Symfony\Component\Cache\Adapter\RedisAdapter::createConnection($redisDsn))
+                ->addArgument($namespace)
+                ->addArgument($defaultLifetime);
+        } else {
+            // Fallback to filesystem if RedisAdapter is not available
+            $containerBuilder->register('cache', FilesystemAdapter::class)
+                ->addArgument('baluarte')
+                ->addArgument(0)
+                ->addArgument(__DIR__ . '/data/cache');
+        }
+    } catch (\Throwable $e) {
+        // Fallback to filesystem cache on any error
+        $containerBuilder->register('cache', FilesystemAdapter::class)
+            ->addArgument('baluarte')
+            ->addArgument(0)
+            ->addArgument(__DIR__ . '/data/cache');
+    }
+} else {
+    $containerBuilder->register('cache', FilesystemAdapter::class)
+        ->addArgument('baluarte')
+        ->addArgument(0)
+        ->addArgument(__DIR__ . '/data/cache');
+}
 
 // Logger
 $containerBuilder->register('logger', Logger::class)
@@ -114,12 +146,18 @@ $containerBuilder->register('notification_manager', NotificationManager::class)
 
 // WhitelistManager
 $containerBuilder->register('whitelist_manager', WhitelistManager::class)
-    ->addArgument($config['whitelist'] ?? []);
+    ->addArgument($config['whitelist']['ips'] ?? [])
+    ->addArgument($config['whitelist']['countries'] ?? []);
 
 // GeoIpService
 $containerBuilder->register('geoip_service', GeoIpService::class)
     ->addArgument($config['geoip']['database_path'] ?? null)
     ->addArgument(new Reference('logger'))
+    ->addArgument(new Reference('cache'));
+
+// DnsblService
+$containerBuilder->register('dnsbl_service', DnsblService::class)
+    ->addArgument($config['api']['dnsbl'] ?? [])
     ->addArgument(new Reference('cache'));
 
 // ExportService
@@ -129,6 +167,15 @@ $containerBuilder->register('export_service', ExportService::class);
 $containerBuilder->register('event_dispatcher', EventDispatcher::class)
     ->addMethodCall('addSubscriber', [new Reference('logger_subscriber')])
     ->addMethodCall('addSubscriber', [new Reference('mqtt_subscriber')]);
+
+// HoneypotService
+$containerBuilder->register('honeypot_service', HoneypotService::class)
+    ->addArgument(new Reference('db_handler'))
+    ->addArgument(new Reference('firewall_manager'))
+    ->addArgument(new Reference('whitelist_manager'))
+    ->addArgument(new Reference('logger'))
+    ->addArgument(new Reference('cache'))
+    ->addArgument(new Reference('config'));
 
 $containerBuilder->register('logger_subscriber', LoggerSubscriber::class)
     ->addArgument(new Reference('logger'));
@@ -146,6 +193,7 @@ $containerBuilder->register('scan_service', ScanService::class)
     ->addArgument(new Reference('notification_manager'))
     ->addArgument(new Reference('whitelist_manager'))
     ->addArgument(new Reference('geoip_service'))
+    ->addArgument(new Reference('dnsbl_service'))
     ->addArgument(new Reference('event_dispatcher'))
     ->addArgument(new Reference('logger'))
     ->addArgument(new Reference('cache'))
@@ -164,6 +212,10 @@ $containerBuilder->register('export_command', ExportCommand::class)
     ->addArgument(new Reference('db_handler'))
     ->addArgument(new Reference('export_service'));
 
+// MigrateCommand
+$containerBuilder->register('migrate_command', MigrateCommand::class)
+    ->addArgument(new Reference('db_handler'));
+
 // MqttListenCommand
 $containerBuilder->register('mqtt_listen_command', MqttListenCommand::class)
     ->addArgument(new Reference('mqtt_service'))
@@ -171,6 +223,12 @@ $containerBuilder->register('mqtt_listen_command', MqttListenCommand::class)
     ->addArgument(new Reference('db_handler'))
     ->addArgument(new Reference('logger'))
     ->addArgument($config['notifications']['mqtt'] ?? []);
+
+// Honeypot HTTP Command
+$containerBuilder->register('honeypot_http_command', HoneypotHttpCommand::class)
+    ->addArgument(new Reference('honeypot_service'))
+    ->addArgument(new Reference('logger'))
+    ->addArgument($config);
 
 $composerData = json_decode(file_get_contents(__DIR__ . '/composer.json'), true);
 $version = $composerData['version'] ?? 'unknown';
@@ -192,7 +250,17 @@ try {
 
 }
 try {
+    $application->addCommand($containerBuilder->get('migrate_command'));
+} catch (Exception $e) {
+
+}
+try {
     $application->addCommand($containerBuilder->get('mqtt_listen_command'));
+} catch (Exception $e) {
+
+}
+try {
+    $application->addCommand($containerBuilder->get('honeypot_http_command'));
 } catch (Exception $e) {
 
 }

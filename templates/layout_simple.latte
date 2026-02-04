@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="baluarte">
+<html lang="{$locale ?? 'en'}" data-theme="{$config['gui']['theme'] ?? 'baluarte'}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{ifset title}{include title} - {/ifset}Baluarte Admin</title>
+    <title>{ifset title}{include title} - {/ifset}{_'app.name'} Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -31,12 +31,26 @@
                             "error": "#f87272",
                         },
                     },
+                    {
+                        "baluarte_light": {
+                            "primary": "#3b82f6",
+                            "secondary": "#64748b",
+                            "accent": "#1fb2a6",
+                            "neutral": "#f3f4f6",
+                            "base-100": "#ffffff",
+                            "info": "#3abff8",
+                            "success": "#36d399",
+                            "warning": "#fbbd23",
+                            "error": "#f87272",
+                        },
+                    },
                 ],
             },
         }
     </script>
     <style>
-        body { background-color: #08121c; color: #e2e8f0; }
+        [data-theme="baluarte"] body { background-color: #08121c; color: #e2e8f0; }
+        [data-theme="baluarte_light"] body { background-color: #ffffff; color: #1f2937; }
     </style>
 </head>
 <body class="min-h-screen bg-base-100">
