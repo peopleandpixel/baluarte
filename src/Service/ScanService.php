@@ -4,6 +4,7 @@ namespace Baluarte\Service;
 
 use Baluarte\Event\ThreatDetectedEvent;
 use Baluarte\Database\DatabaseHandler;
+use Baluarte\Scanner\DnsblServiceInterface;
 use Baluarte\Scanner\FirewallManager;
 use Baluarte\Scanner\GeoIpServiceInterface;
 use Baluarte\Scanner\LogScanner;
@@ -25,6 +26,8 @@ use Symfony\Contracts\Cache\ItemInterface;
  */
 class ScanService
 {
+    private bool $dryRun = false;
+
     public function __construct(
         private LogScanner $scanner,
         private DatabaseHandler $db,
@@ -33,11 +36,22 @@ class ScanService
         private NotificationManager $notificationManager,
         private WhitelistManager $whitelistManager,
         private GeoIpServiceInterface $geoIpService,
+        private DnsblServiceInterface $dnsblService,
         private EventDispatcherInterface $eventDispatcher,
         private LoggerInterface $logger,
         private CacheInterface $cache,
         private Configuration $config
     ) {}
+
+    /**
+     * Sets the dry-run mode.
+     * 
+     * @param bool $dryRun
+     */
+    public function setDryRun(bool $dryRun): void
+    {
+        $this->dryRun = $dryRun;
+    }
 
     /**
      * Scans log files and processes hits.
@@ -105,6 +119,7 @@ class ScanService
     {
         $ips = array_unique(array_column($hits, 'ip'));
         $reputations = $this->reputationChecker->checkIps($ips);
+        $dnsblResults = $this->dnsblService->checkIps($ips);
 
         $toSave = [];
         foreach ($hits as $result) {
@@ -117,6 +132,12 @@ class ScanService
 
             $result['geo'] = $this->geoIpService->lookup($ip);
             $result['reputation'] = $reputations[$ip] ?? [];
+            $result['dnsbl'] = $dnsblResults[$ip] ?? [];
+
+            if ($this->whitelistManager->isCountryWhitelisted($result['geo']['country_code'] ?? null)) {
+                $this->logger->info("Country " . ($result['geo']['country_code'] ?? 'Unknown') . " is whitelisted, skipping IP $ip.");
+                continue;
+            }
 
             $cacheKey = 'attempts_' . str_replace(['.', ':'], '_', $ip);
             $threshold = $this->config->get('threshold', ['attempts' => 1, 'minutes' => 60]);
@@ -143,7 +164,10 @@ class ScanService
                     ThreatDetectedEvent::NAME
                 );
 
-                if ($this->firewallManager->blockIp($ip)) {
+                if ($this->dryRun) {
+                    $this->logger->info("Dry-run: Would block IP $ip");
+                    $this->db->addBan($ip, $this->config->get('ban_duration', 1440), 'ip');
+                } elseif ($this->firewallManager->blockIp($ip)) {
                     $banDuration = $this->config->get('ban_duration', 1440);
                     $this->db->addBan($ip, $banDuration, 'ip');
                 }
@@ -176,7 +200,11 @@ class ScanService
         $unbanned = [];
 
         foreach ($expiredIps as $ip) {
-            if ($this->firewallManager->unblockIp($ip)) {
+            if ($this->dryRun) {
+                $this->logger->info("Dry-run: Would unblock $ip (ban expired)");
+                $this->db->removeBan($ip);
+                $unbanned[] = $ip;
+            } elseif ($this->firewallManager->unblockIp($ip)) {
                 $this->db->removeBan($ip);
                 $this->logger->info("Unblocked $ip (ban expired)");
                 $unbanned[] = $ip;
@@ -186,5 +214,20 @@ class ScanService
         }
 
         return $unbanned;
+    }
+
+    /**
+     * Cleans up old database entries.
+     * 
+     * @return int Number of removed entries.
+     */
+    public function cleanupOldEntries(): int
+    {
+        $days = $this->config->get('cleanup_days', 30);
+        if ($days <= 0) {
+            return 0;
+        }
+
+        return $this->db->cleanup($days);
     }
 }

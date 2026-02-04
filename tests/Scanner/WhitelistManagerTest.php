@@ -32,5 +32,17 @@ class WhitelistManagerTest extends TestCase
     {
         $whitelist = new WhitelistManager([]);
         $this->assertFalse($whitelist->isWhitelisted('127.0.0.1'));
+        $this->assertFalse($whitelist->isCountryWhitelisted('US'));
+    }
+
+    public function testIsCountryWhitelisted(): void
+    {
+        $whitelist = new WhitelistManager([], ['US', 'BE']);
+
+        $this->assertTrue($whitelist->isCountryWhitelisted('US'));
+        $this->assertTrue($whitelist->isCountryWhitelisted('BE'));
+        $this->assertTrue($whitelist->isCountryWhitelisted('us')); // case insensitive
+        $this->assertFalse($whitelist->isCountryWhitelisted('FR'));
+        $this->assertFalse($whitelist->isCountryWhitelisted(null));
     }
 }

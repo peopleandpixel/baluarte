@@ -1,26 +1,26 @@
 {layout 'layout_simple.latte'}
 
-{block title}Login{/block}
+{block title}{_'login.title'}{/block}
 
 {block content}
 <div class="flex items-center justify-center min-h-screen">
     <div class="card w-96 bg-base-200 shadow-xl">
         <div class="card-body">
             <div class="flex justify-center mb-4">
-                <img src="assets/img/logo.jpg" alt="Baluarte" class="h-16 w-16 rounded-xl">
+                <img src="assets/img/logo.jpg" alt="{_'app.name'}" class="h-16 w-16 rounded-xl">
             </div>
-            <h2 class="card-title justify-center text-2xl font-bold mb-6">Baluarte Login</h2>
+            <h2 class="card-title justify-center text-2xl font-bold mb-6">{_'app.name'} {_'login.title'}</h2>
             
             {if isset($error)}
                 <div class="alert alert-error mb-4">
-                    <span>{$error}</span>
+                    <span>{_ $error}</span>
                 </div>
             {/if}
 
             <form method="POST" action="/?page=login">
                 <div class="form-control w-full">
                     <label class="label">
-                        <span class="label-text">Password</span>
+                        <span class="label-text">{_'login.password'}</span>
                     </label>
                     <input type="password" name="password" class="input input-bordered w-full" required autofocus>
                 </div>
@@ -28,14 +28,14 @@
                 {if $twoFactorEnabled}
                 <div class="form-control w-full mt-4">
                     <label class="label">
-                        <span class="label-text">2FA Code</span>
+                        <span class="label-text">{_'login.2fa'}</span>
                     </label>
                     <input type="text" name="two_factor_code" class="input input-bordered w-full" placeholder="123456" autocomplete="one-time-code">
                 </div>
                 {/if}
 
                 <div class="card-actions justify-end mt-6">
-                    <button type="submit" class="btn btn-primary w-full">Login</button>
+                    <button type="submit" class="btn btn-primary w-full">{_'login.submit'}</button>
                 </div>
             </form>
         </div>

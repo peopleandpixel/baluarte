@@ -55,21 +55,30 @@ class FirewallManager
      * Blocks all IP ranges associated with a country using all configured drivers.
      * 
      * @param string $countryCode The ISO 3166-1 alpha-2 country code.
-     * @param GeoIpService $geoIpService GeoIP service to resolve country to ranges (not fully implemented).
+     * @param CountryIpService $countryIpService Service to resolve country to ranges.
      * @return bool True if at least one driver successfully blocked the country, false otherwise.
      */
-    public function blockCountry(string $countryCode, GeoIpService $geoIpService): bool
+    public function blockCountry(string $countryCode, \Baluarte\Service\CountryIpService $countryIpService): bool
     {
         if (!$this->enabled || empty($this->drivers)) {
+            return false;
+        }
+
+        $ranges = $countryIpService->getIpRanges($countryCode);
+        if (empty($ranges)) {
             return false;
         }
         
         $success = false;
         foreach ($this->drivers as $driver) {
-            if (method_exists($driver, 'blockCountry')) {
-                if ($driver->blockCountry($countryCode)) {
-                    $success = true;
+            $driverSuccess = true;
+            foreach ($ranges as $range) {
+                if (!$driver->blockRange($range)) {
+                    $driverSuccess = false;
                 }
+            }
+            if ($driverSuccess) {
+                $success = true;
             }
         }
 
@@ -102,20 +111,30 @@ class FirewallManager
      * Unblocks a country using all configured drivers.
      * 
      * @param string $countryCode The ISO 3166-1 alpha-2 country code.
+     * @param \Baluarte\Service\CountryIpService $countryIpService Service to resolve country to ranges.
      * @return bool True if at least one driver successfully unblocked the country, false otherwise.
      */
-    public function unblockCountry(string $countryCode): bool
+    public function unblockCountry(string $countryCode, \Baluarte\Service\CountryIpService $countryIpService): bool
     {
         if (!$this->enabled || empty($this->drivers)) {
             return false;
         }
 
+        $ranges = $countryIpService->getIpRanges($countryCode);
+        if (empty($ranges)) {
+            return false;
+        }
+
         $success = false;
         foreach ($this->drivers as $driver) {
-            if (method_exists($driver, 'unblockCountry')) {
-                if ($driver->unblockCountry($countryCode)) {
-                    $success = true;
+            $driverSuccess = true;
+            foreach ($ranges as $range) {
+                if (!$driver->unblockRange($range)) {
+                    $driverSuccess = false;
                 }
+            }
+            if ($driverSuccess) {
+                $success = true;
             }
         }
 

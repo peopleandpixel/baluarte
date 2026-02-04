@@ -36,6 +36,28 @@ class UfwDriver implements FirewallDriverInterface
     /**
      * @inheritDoc
      */
+    public function blockRange(string $target): bool
+    {
+        $cmd = sprintf('sudo ufw deny from %s', escapeshellarg($target));
+        exec($cmd, $output, $returnVar);
+
+        return $returnVar === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function unblockRange(string $target): bool
+    {
+        $cmd = sprintf('sudo ufw delete deny from %s', escapeshellarg($target));
+        exec($cmd, $output, $returnVar);
+
+        return $returnVar === 0;
+    }
+
+    /**
+     * @inheritDoc
+     */
     public function getName(): string
     {
         return 'ufw';

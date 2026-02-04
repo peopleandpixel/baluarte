@@ -77,7 +77,10 @@ class GeoIpService implements GeoIpServiceInterface
             $record = $this->reader->city($ip);
             return [
                 'country' => $record->country->name,
+                'country_code' => $record->country->isoCode,
                 'city' => $record->city->name,
+                'latitude' => $record->location->latitude,
+                'longitude' => $record->location->longitude,
                 'isp' => null, // City database doesn't have ISP
             ];
         } catch (Exception $e) {

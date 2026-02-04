@@ -2,6 +2,7 @@
 
 namespace Baluarte\Database;
 
+use Baluarte\Database\Migration\Version20260204000000;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception;
@@ -25,6 +26,22 @@ class DatabaseHandler
     private Connection $connection;
     private LoggerInterface $logger;
     private ?EventDispatcherInterface $eventDispatcher;
+
+    /**
+     * @return Connection
+     */
+    public function getConnection(): Connection
+    {
+        return $this->connection;
+    }
+
+    /**
+     * @return LoggerInterface
+     */
+    public function getLogger(): LoggerInterface
+    {
+        return $this->logger;
+    }
 
     /**
      * DatabaseHandler constructor.
@@ -51,109 +68,18 @@ class DatabaseHandler
     }
 
     /**
-     * Initializes the database schema if it doesn't exist or is outdated.
+     * Initializes the database schema using migrations.
      * 
      * @throws Exception If schema initialization fails.
      */
     private function initializeSchema(): void
     {
-        $schemaManager = $this->connection->createSchemaManager();
-        $schema = $schemaManager->introspectSchema();
-
-        $newSchema = clone $schema;
-        $changes = false;
-
-        if (!$newSchema->hasTable('malicious_ips')) {
-            $maliciousIpsTable = $newSchema->createTable('malicious_ips');
-            $maliciousIpsTable->addColumn('id', 'integer', ['autoincrement' => true]);
-            $maliciousIpsTable->addColumn('ip_address', 'string');
-            $maliciousIpsTable->addColumn('reason', 'string', ['notnull' => false]);
-            $maliciousIpsTable->addColumn('log_source', 'string', ['notnull' => false]);
-            $maliciousIpsTable->addColumn('country', 'string', ['notnull' => false]);
-            $maliciousIpsTable->addColumn('city', 'string', ['notnull' => false]);
-            $maliciousIpsTable->addColumn('isp', 'string', ['notnull' => false]);
-            $maliciousIpsTable->addColumn('detected_at', 'datetime', ['default' => 'CURRENT_TIMESTAMP']);
-            $maliciousIpsTable->setPrimaryKey(['id']);
-            $maliciousIpsTable->addUniqueIndex(['ip_address', 'reason']);
-            $maliciousIpsTable->addIndex(['ip_address'], 'idx_ip_address');
-            $maliciousIpsTable->addIndex(['detected_at'], 'idx_detected_at');
-            $changes = true;
-        }
-
-        if (!$newSchema->hasTable('active_bans')) {
-            $activeBansTable = $newSchema->createTable('active_bans');
-            $activeBansTable->addColumn('id', 'integer', ['autoincrement' => true]);
-            $activeBansTable->addColumn('ip_address', 'string');
-            $activeBansTable->addColumn('banned_at', 'datetime', ['default' => 'CURRENT_TIMESTAMP']);
-            $activeBansTable->addColumn('expires_at', 'datetime');
-            $activeBansTable->addColumn('type', 'string', ['default' => 'ip']);
-            $activeBansTable->setPrimaryKey(['id']);
-            $activeBansTable->addUniqueIndex(['ip_address']);
-            $activeBansTable->addIndex(['expires_at'], 'idx_ban_expires_at');
-            $changes = true;
-        }
-
-        if (!$newSchema->hasTable('settings')) {
-            $settingsTable = $newSchema->createTable('settings');
-            $settingsTable->addColumn('key', 'string');
-            $settingsTable->addColumn('value', 'text', ['notnull' => false]);
-            $settingsTable->setPrimaryKey(['key']);
-            $changes = true;
-        }
-
-        if ($changes) {
-            $comparator = $schemaManager->createComparator();
-            $schemaDiff = $comparator->compareSchemas($schema, $newSchema);
-            foreach ($this->connection->getDatabasePlatform()->getAlterSchemaSQL($schemaDiff) as $sql) {
-                $this->connection->executeStatement($sql);
-            }
-        }
-
-        // Update schema if columns are missing
-        $this->updateSchema();
+        $migrationManager = new MigrationManager($this->connection, $this->logger);
+        $migrationManager->migrate([
+            new Version20260204000000(),
+        ]);
     }
 
-    /**
-     * Updates the database schema by adding missing columns.
-     * 
-     * @throws Exception If schema update fails.
-     */
-    private function updateSchema(): void
-    {
-        $schemaManager = $this->connection->createSchemaManager();
-        
-        $schema = $schemaManager->introspectSchema();
-        $newSchema = clone $schema;
-        $changes = false;
-
-        $table = $newSchema->getTable('malicious_ips');
-        if (!$table->hasColumn('country')) {
-            $table->addColumn('country', 'string', ['notnull' => false]);
-            $changes = true;
-        }
-        if (!$table->hasColumn('city')) {
-            $table->addColumn('city', 'string', ['notnull' => false]);
-            $changes = true;
-        }
-        if (!$table->hasColumn('isp')) {
-            $table->addColumn('isp', 'string', ['notnull' => false]);
-            $changes = true;
-        }
-
-        $tableBans = $newSchema->getTable('active_bans');
-        if (!$tableBans->hasColumn('type')) {
-            $tableBans->addColumn('type', 'string', ['default' => 'ip']);
-            $changes = true;
-        }
-
-        if ($changes) {
-            $comparator = $schemaManager->createComparator();
-            $schemaDiff = $comparator->compareSchemas($schema, $newSchema);
-            foreach ($this->connection->getDatabasePlatform()->getAlterSchemaSQL($schemaDiff) as $sql) {
-                $this->connection->executeStatement($sql);
-            }
-        }
-    }
 
     /**
      * Saves a single detected IP to the database.
@@ -173,7 +99,9 @@ class DatabaseHandler
                 'log_source' => $source,
                 'country' => $geoData['country'] ?? null,
                 'city' => $geoData['city'] ?? null,
-                'isp' => $geoData['isp'] ?? null
+                'isp' => $geoData['isp'] ?? null,
+                'latitude' => $geoData['latitude'] ?? null,
+                'longitude' => $geoData['longitude'] ?? null,
             ]);
             return true;
         } catch (Exception $e) {
@@ -206,7 +134,9 @@ class DatabaseHandler
                         'log_source' => $result['source'],
                         'country' => $result['geo']['country'] ?? null,
                         'city' => $result['geo']['city'] ?? null,
-                        'isp' => $result['geo']['isp'] ?? null
+                        'isp' => $result['geo']['isp'] ?? null,
+                        'latitude' => $result['geo']['latitude'] ?? null,
+                        'longitude' => $result['geo']['longitude'] ?? null,
                     ]);
                     $count++;
                 } catch (Exception $e) {
@@ -236,7 +166,7 @@ class DatabaseHandler
     {
         $queryBuilder = $this->connection->createQueryBuilder();
         $queryBuilder
-            ->select('m.id', 'm.ip_address as ip', 'm.reason', 'm.log_source', 'm.country', 'm.city', 'm.isp', 'm.detected_at')
+            ->select('m.id', 'm.ip_address as ip', 'm.reason', 'm.log_source', 'm.country', 'm.city', 'm.isp', 'm.latitude', 'm.longitude', 'm.detected_at')
             ->from('malicious_ips', 'm')
             ->leftJoin('m', 'active_bans', 'b', 'm.ip_address = b.ip_address AND b.expires_at > :now')
             ->where('b.ip_address IS NULL')
@@ -442,6 +372,70 @@ class DatabaseHandler
         } catch (Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * Removes malicious IP entries older than a certain number of days.
+     * 
+     * @param int $days Entries older than this many days will be removed.
+     * @return int Number of removed entries.
+     * @throws Exception
+     */
+    public function cleanup(int $days): int
+    {
+        $queryBuilder = $this->connection->createQueryBuilder();
+        $queryBuilder
+            ->delete('malicious_ips')
+            ->where('detected_at < :date')
+            ->setParameter('date', date('Y-m-d H:i:s', strtotime("-$days days")));
+
+        $count = $queryBuilder->executeStatement();
+        if ($count > 0) {
+            $this->logger->info("Cleaned up $count old malicious IP entries.");
+        }
+        return $count;
+    }
+
+    /**
+     * Checks if an IP address is currently banned.
+     * 
+     * @param string $ip
+     * @return array|null Ban details or null if not banned.
+     * @throws Exception
+     */
+    public function getBanDetails(string $ip): ?array
+    {
+        $queryBuilder = $this->connection->createQueryBuilder();
+        $queryBuilder
+            ->select('id', 'ip_address as target', 'banned_at', 'expires_at', 'type')
+            ->from('active_bans')
+            ->where('ip_address = :ip')
+            ->andWhere('expires_at > :now')
+            ->setParameter('ip', $ip)
+            ->setParameter('now', date('Y-m-d H:i:s'));
+
+        $result = $queryBuilder->executeQuery()->fetchAssociative();
+        return $result ?: null;
+    }
+
+    /**
+     * Retrieves all detection history for a specific IP.
+     * 
+     * @param string $ip
+     * @return array
+     * @throws Exception
+     */
+    public function getIpHistory(string $ip): array
+    {
+        $queryBuilder = $this->connection->createQueryBuilder();
+        $queryBuilder
+            ->select('id', 'ip_address as ip', 'reason', 'log_source', 'country', 'city', 'isp', 'latitude', 'longitude', 'detected_at')
+            ->from('malicious_ips')
+            ->where('ip_address = :ip')
+            ->orderBy('detected_at', 'DESC')
+            ->setParameter('ip', $ip);
+
+        return $queryBuilder->executeQuery()->fetchAllAssociative();
     }
 
     /**

@@ -1,0 +1,112 @@
+{layout 'layout.latte'}
+
+{block title}{_'ip.details.title', $ipDetails['ip']}{/block}
+
+{block content}
+<div class="mb-6">
+    <a href="/?page=dashboard" class="btn btn-sm btn-ghost gap-2">
+        <i class="bi bi-arrow-left"></i> {_'ip.details.back'}
+    </a>
+</div>
+
+{if $ipDetails}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        <!-- IP Information -->
+        <div class="card bg-base-200 shadow-xl lg:col-span-1">
+            <div class="card-body">
+                <h2 class="card-title mb-4">{_'ip.details.info'}</h2>
+                <div class="space-y-4">
+                    <div>
+                        <div class="text-sm opacity-50">{_'ip.details.ip_address'}</div>
+                        <div class="font-mono text-xl">{$ipDetails['ip']}</div>
+                    </div>
+                    <div>
+                        <div class="text-sm opacity-50">{_'ip.details.location'}</div>
+                        <div>
+                            {if isset($ipDetails['last_geo']['country']) && $ipDetails['last_geo']['country'] !== 'Unknown'}
+                                <span class="badge badge-ghost">{$ipDetails['last_geo']['country']}</span>
+                                {if isset($ipDetails['last_geo']['city'])}
+                                    <span class="text-sm">{$ipDetails['last_geo']['city']}</span>
+                                {/if}
+                            {else}
+                                <span class="opacity-50 text-sm">{_'ip.details.unknown_location'}</span>
+                            {/if}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="text-sm opacity-50">{_'ip.details.isp'}</div>
+                        <div class="text-sm">{$ipDetails['last_geo']['isp'] ?? 'Unknown'}</div>
+                    </div>
+                    <div class="divider"></div>
+                    <div>
+                        <div class="text-sm opacity-50">{_'ip.details.status'}</div>
+                        {if $ipDetails['ban']}
+                            <div class="badge badge-error gap-2 mt-1">
+                                <i class="bi bi-shield-slash"></i> {_'ip.details.status.banned'}
+                            </div>
+                            <div class="text-xs mt-2 opacity-70">
+                                {_'ip.details.expires', $ipDetails['ban']['expires_at']}
+                            </div>
+                        {else}
+                            <div class="badge badge-success gap-2 mt-1">
+                                <i class="bi bi-shield-check"></i> {_'ip.details.status.not_banned'}
+                            </div>
+                        {/if}
+                    </div>
+                    
+                    <div class="card-actions justify-end mt-4">
+                        {if $ipDetails['ban']}
+                            <form method="POST">
+                                <input type="hidden" name="action" value="remove_ban">
+                                <input type="hidden" name="ip" value="{$ipDetails['ip']}">
+                                <button type="submit" class="btn btn-sm btn-outline btn-success w-full">{_'ip.details.unban'}</button>
+                            </form>
+                        {else}
+                            <form method="POST">
+                                <input type="hidden" name="action" value="add_ban">
+                                <input type="hidden" name="target" value="{$ipDetails['ip']}">
+                                <input type="hidden" name="type" value="ip">
+                                <button type="submit" class="btn btn-sm btn-error w-full">{_'ip.details.ban'}</button>
+                            </form>
+                        {/if}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detection History -->
+        <div class="card bg-base-200 shadow-xl lg:col-span-2">
+            <div class="card-body">
+                <h2 class="card-title mb-4">{_'ip.details.history'}</h2>
+                <div class="overflow-x-auto">
+                    <table class="table table-compact w-full">
+                        <thead>
+                            <tr>
+                                <th>{_'ip.details.table.detected_at'}</th>
+                                <th>{_'ip.details.table.reason'}</th>
+                                <th>{_'ip.details.table.source'}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {foreach $ipDetails['history'] as $entry}
+                            <tr>
+                                <td><span class="text-xs">{$entry['detected_at']}</span></td>
+                                <td>{$entry['reason']}</td>
+                                <td><span class="text-xs opacity-70">{$entry['log_source']}</span></td>
+                            </tr>
+                            {/foreach}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+{else}
+    <div class="alert alert-error shadow-lg">
+        <div>
+            <i class="bi bi-exclamation-octagon text-2xl"></i>
+            <span>{_'ip.details.error.not_found'}</span>
+        </div>
+    </div>
+{/if}
+{/block}

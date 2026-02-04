@@ -165,4 +165,30 @@ class DatabaseHandlerTest extends TestCase
         $this->assertNull($this->db->getSetting('non_existent'));
         $this->assertEquals('default', $this->db->getSetting('non_existent', 'default'));
     }
+
+    public function testCleanup(): void
+    {
+        $connection = $this->db->getConnection();
+        
+        // Directly insert old and new entries
+        $connection->insert('malicious_ips', [
+            'ip_address' => '1.1.1.1',
+            'reason' => 'Old',
+            'log_source' => 'test',
+            'detected_at' => date('Y-m-d H:i:s', strtotime('-31 days'))
+        ]);
+        $connection->insert('malicious_ips', [
+            'ip_address' => '2.2.2.2',
+            'reason' => 'New',
+            'log_source' => 'test',
+            'detected_at' => date('Y-m-d H:i:s', strtotime('-29 days'))
+        ]);
+
+        $removed = $this->db->cleanup(30);
+        $this->assertEquals(1, $removed);
+
+        $ips = $this->db->getAllDetectedIps();
+        $this->assertCount(1, $ips);
+        $this->assertEquals('2.2.2.2', $ips[0]['ip']);
+    }
 }

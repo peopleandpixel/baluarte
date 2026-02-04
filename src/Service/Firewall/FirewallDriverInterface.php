@@ -28,6 +28,22 @@ interface FirewallDriverInterface
     public function unblockIp(string $ip): bool;
 
     /**
+     * Blocks a CIDR range or country code.
+     *
+     * @param string $target The target (e.g., '192.168.1.0/24' or 'CN').
+     * @return bool True on success, false otherwise.
+     */
+    public function blockRange(string $target): bool;
+
+    /**
+     * Unblocks a CIDR range or country code.
+     *
+     * @param string $target The target.
+     * @return bool True on success, false otherwise.
+     */
+    public function unblockRange(string $target): bool;
+
+    /**
      * Returns the name of the firewall driver.
      * 
      * @return string The driver name.
