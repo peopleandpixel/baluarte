@@ -1,3 +1,45 @@
+# Config (contains secrets)
 config/config.yaml
-.idea
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.junie/
+
+# Dependencies
 vendor/
+
+# Build artifacts
+*.sqlite
+*.sqlite3
+*.db
+*.log
+
+# Logs
+logs/
+*.log
+
+# Runtime
+tmp/
+var/
+data/baluarte.sqlite
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# PHPUnit
+.phpunit.cache/
+.phpunit.result.cache
+
+# PHPStan
+.phpstan.cache/
+
+# Composer
+composer.phar
