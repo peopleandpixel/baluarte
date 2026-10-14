@@ -184,7 +184,8 @@ class Router
             return;
         }
 
-        $routeKey = 'api:' . $path . ':' . $method;
+        // Convert path separators to match route key format (slashes to colons)
+        $routeKey = 'api:' . str_replace('/', ':', $path) . ':' . $method;
         if (isset($this->routes[$routeKey])) {
             $this->invokeController($this->routes[$routeKey]);
             return;

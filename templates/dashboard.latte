@@ -37,43 +37,63 @@
     <!-- Threats over time chart -->
     <div class="card bg-base-200 shadow-xl">
         <div class="card-body">
-            <h2 class="card-title mb-4">Threats Over Time</h2>
+            <h2 class="card-title mb-4">{_'dashboard.stats.threats_over_time'}</h2>
             <div class="flex gap-2 mb-4">
                 <button class="btn btn-xs btn-active chart-period-btn" data-period="hour">24h</button>
                 <button class="btn btn-xs chart-period-btn" data-period="day">30d</button>
                 <button class="btn btn-xs chart-period-btn" data-period="week">12w</button>
             </div>
-            <canvas id="threatsTimeChart" height="200"></canvas>
+            <div id="threatsTimeChart-empty" class="flex items-center justify-center h-48 text-gray-500" style="display:none;">
+                <span>{_'dashboard.no_data'}</span>
+            </div>
+            <div style="position: relative; height: 200px;">
+                <canvas id="threatsTimeChart"></canvas>
+            </div>
         </div>
     </div>
 
     <!-- Top countries chart -->
     <div class="card bg-base-200 shadow-xl">
         <div class="card-body">
-            <h2 class="card-title mb-4">Top Attacking Countries</h2>
-            <canvas id="topCountriesChart" height="200"></canvas>
+            <h2 class="card-title mb-4">{_'dashboard.stats.top_countries'}</h2>
+            <div id="topCountriesChart-empty" class="flex items-center justify-center h-48 text-gray-500" style="display:none;">
+                <span>{_'dashboard.no_data'}</span>
+            </div>
+            <div style="position: relative; height: 200px;">
+                <canvas id="topCountriesChart"></canvas>
+            </div>
         </div>
     </div>
 
     <!-- Attack types chart -->
     <div class="card bg-base-200 shadow-xl">
         <div class="card-body">
-            <h2 class="card-title mb-4">Attack Types Distribution</h2>
-            <canvas id="attackTypesChart" height="200"></canvas>
+            <h2 class="card-title mb-4">{_'dashboard.stats.attack_types'}</h2>
+            <div id="attackTypesChart-empty" class="flex items-center justify-center h-48 text-gray-500" style="display:none;">
+                <span>{_'dashboard.no_data'}</span>
+            </div>
+            <div style="position: relative; height: 200px;">
+                <canvas id="attackTypesChart"></canvas>
+            </div>
         </div>
     </div>
 
     <!-- Ban timeline chart -->
     <div class="card bg-base-200 shadow-xl">
         <div class="card-body">
-            <h2 class="card-title mb-4">Ban Expirations (Next 24h)</h2>
-            <canvas id="banTimelineChart" height="200"></canvas>
+            <h2 class="card-title mb-4">{_'dashboard.stats.ban_timeline'}</h2>
+            <div id="banTimelineChart-empty" class="flex items-center justify-center h-48 text-gray-500" style="display:none;">
+                <span>{_'dashboard.no_data'}</span>
+            </div>
+            <div style="position: relative; height: 200px;">
+                <canvas id="banTimelineChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
 
 <script type="application/json" id="initial-threats">
-    {$detectedIps|noescape}
+    {$detectedIpsJson|noescape}
 </script>
 
 <div class="card bg-base-200 shadow-xl">
@@ -185,11 +205,11 @@
         // Map initialization with MapLibre GL JS
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'https://lfmaps.fr/styles/osm-bright.json',
+            style: 'https://demotiles.maplibre.org/style.json',
             center: [0, 20],
             zoom: 2,
             attributionControl: true,
-            attributionCustom: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> / <a href="https://lfmaps.fr">LFMaps</a>'
+            attributionCustom: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> / <a href="https://maplibre.org">MapLibre</a>'
         });
 
         map.addControl(new maplibregl.NavigationControl());
@@ -367,6 +387,20 @@
     }
 
     function renderThreatsTimeChart(data, period) {
+        if (!Array.isArray(data)) {
+            console.error('Invalid data format for threats time chart:', data);
+            return;
+        }
+        const emptyEl = document.getElementById('threatsTimeChart-empty');
+        if (data.length === 0) {
+            if (emptyEl) emptyEl.style.display = 'flex';
+            if (threatsTimeChart) {
+                threatsTimeChart.destroy();
+                threatsTimeChart = null;
+            }
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
         const ctx = document.getElementById('threatsTimeChart').getContext('2d');
         const labels = data.map(d => period === 'hour' ? d.hour : period === 'day' ? d.day : d.week);
         const counts = data.map(d => d.count);
@@ -405,6 +439,16 @@
         fetch('/api/stats/countries?limit=10')
             .then(r => r.json())
             .then(data => {
+                if (!Array.isArray(data)) {
+                    console.error('Invalid data format for top countries:', data);
+                    return;
+                }
+                const emptyEl = document.getElementById('topCountriesChart-empty');
+                if (data.length === 0) {
+                    if (emptyEl) emptyEl.style.display = 'flex';
+                    return;
+                }
+                if (emptyEl) emptyEl.style.display = 'none';
                 const ctx = document.getElementById('topCountriesChart').getContext('2d');
                 const labels = data.map(d => d.country);
                 const counts = data.map(d => d.count);
@@ -445,6 +489,16 @@
         fetch('/api/stats/attack-types')
             .then(r => r.json())
             .then(data => {
+                if (!Array.isArray(data)) {
+                    console.error('Invalid data format for attack types:', data);
+                    return;
+                }
+                const emptyEl = document.getElementById('attackTypesChart-empty');
+                if (data.length === 0) {
+                    if (emptyEl) emptyEl.style.display = 'flex';
+                    return;
+                }
+                if (emptyEl) emptyEl.style.display = 'none';
                 const ctx = document.getElementById('attackTypesChart').getContext('2d');
                 const labels = data.map(d => d.reason);
                 const counts = data.map(d => d.count);
@@ -486,6 +540,16 @@
         fetch('/api/stats/ban-timeline')
             .then(r => r.json())
             .then(data => {
+                if (!Array.isArray(data)) {
+                    console.error('Invalid data format for ban timeline:', data);
+                    return;
+                }
+                const emptyEl = document.getElementById('banTimelineChart-empty');
+                if (data.length === 0) {
+                    if (emptyEl) emptyEl.style.display = 'flex';
+                    return;
+                }
+                if (emptyEl) emptyEl.style.display = 'none';
                 const ctx = document.getElementById('banTimelineChart').getContext('2d');
                 const labels = data.map(d => d.hour);
                 const counts = data.map(d => d.count);

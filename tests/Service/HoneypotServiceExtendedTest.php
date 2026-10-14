@@ -15,10 +15,10 @@ class HoneypotServiceExtendedTest extends TestCase
 {
     public function testRecordHitIgnoresInvalidIp(): void
     {
-        $db = $this->createMock(DatabaseHandler::class);
-        $firewall = $this->createMock(FirewallManager::class);
-        $whitelist = $this->createMock(WhitelistManager::class);
-        $logger = $this->createMock(LoggerInterface::class);
+        $db = $this->createStub(DatabaseHandler::class);
+        $firewall = $this->createStub(FirewallManager::class);
+        $whitelist = $this->createStub(WhitelistManager::class);
+        $logger = $this->createStub(LoggerInterface::class);
         $cache = new ArrayAdapter();
         $config = new Configuration(['honeypot' => []]);
 
@@ -31,8 +31,8 @@ class HoneypotServiceExtendedTest extends TestCase
 
     public function testRecordHitIgnoresWhitelistedIp(): void
     {
-        $db = $this->createMock(DatabaseHandler::class);
-        $firewall = $this->createMock(FirewallManager::class);
+        $db = $this->createStub(DatabaseHandler::class);
+        $firewall = $this->createStub(FirewallManager::class);
         $whitelist = $this->createMock(WhitelistManager::class);
         $whitelist->expects($this->once())
             ->method('isWhitelisted')
@@ -60,11 +60,11 @@ class HoneypotServiceExtendedTest extends TestCase
             ->method('getAttemptCount')
             ->willReturn(1);
 
-        $firewall = $this->createMock(FirewallManager::class);
-        $whitelist = $this->createMock(WhitelistManager::class);
+        $firewall = $this->createStub(FirewallManager::class);
+        $whitelist = $this->createStub(WhitelistManager::class);
         $whitelist->method('isWhitelisted')->willReturn(false);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
         $cache = new ArrayAdapter();
         $config = new Configuration(['honeypot' => ['threshold' => 3]]);
 
@@ -90,10 +90,10 @@ class HoneypotServiceExtendedTest extends TestCase
             ->method('addBan')
             ->with('10.0.0.1', 1440, 'ip');
 
-        $whitelist = $this->createMock(WhitelistManager::class);
+        $whitelist = $this->createStub(WhitelistManager::class);
         $whitelist->method('isWhitelisted')->willReturn(false);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
         $cache = new ArrayAdapter();
         $config = new Configuration(['honeypot' => ['threshold' => 3, 'ban_minutes' => 1440]]);
 
@@ -109,8 +109,8 @@ class HoneypotServiceExtendedTest extends TestCase
             ->method('getAttemptCount')
             ->willThrowException(new \RuntimeException('DB error'));
 
-        $firewall = $this->createMock(FirewallManager::class);
-        $whitelist = $this->createMock(WhitelistManager::class);
+        $firewall = $this->createStub(FirewallManager::class);
+        $whitelist = $this->createStub(WhitelistManager::class);
         $whitelist->method('isWhitelisted')->willReturn(false);
 
         $logger = $this->createMock(LoggerInterface::class);

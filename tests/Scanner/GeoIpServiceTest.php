@@ -19,7 +19,7 @@ class GeoIpServiceTest extends TestCase
 
     public function testLookupReturnsEmptyWithNonExistentDatabase(): void
     {
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         // When file doesn't exist, reader is not initialized, so lookup returns empty
         $service = new GeoIpService('/nonexistent/path.mmdb', $logger);

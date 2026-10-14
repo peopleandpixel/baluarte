@@ -30,7 +30,7 @@ class AuditLogServiceTest extends TestCase
 
     public function testLogSilentlyFailsOnException(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
         $connection->method('insert')->willThrowException(new \RuntimeException('DB error'));
 
         $service = new AuditLogService($connection);
@@ -49,7 +49,7 @@ class AuditLogServiceTest extends TestCase
                 ['id' => 1, 'action' => 'ban_added', 'target' => '10.0.0.1', 'details' => null, 'ip_address' => null, 'created_at' => '2026-01-01 00:00:00'],
             ]);
 
-        $qb = $this->createMock(\Doctrine\DBAL\Query\QueryBuilder::class);
+        $qb = $this->createStub(\Doctrine\DBAL\Query\QueryBuilder::class);
         $qb->method('select')->willReturnSelf();
         $qb->method('from')->willReturnSelf();
         $qb->method('orderBy')->willReturnSelf();
@@ -70,7 +70,7 @@ class AuditLogServiceTest extends TestCase
 
     public function testGetRecentReturnsEmptyOnException(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
         $connection->method('createQueryBuilder')->willThrowException(new \RuntimeException('DB error'));
 
         $service = new AuditLogService($connection);

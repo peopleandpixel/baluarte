@@ -35,6 +35,11 @@ return [
     'dashboard.actions.ban_ip' => 'Ban IP',
     'dashboard.actions.ban_country' => 'Ban Country',
     'dashboard.unknown' => 'Unknown',
+    'dashboard.no_data' => 'No data available',
+    'dashboard.stats.threats_over_time' => 'Threats Over Time',
+    'dashboard.stats.top_countries' => 'Top Attacking Countries',
+    'dashboard.stats.attack_types' => 'Attack Types Distribution',
+    'dashboard.stats.ban_timeline' => 'Ban Expirations (Next 24h)',
 
     // Bans
     'bans.title' => 'Active Bans',

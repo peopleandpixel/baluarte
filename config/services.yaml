@@ -208,11 +208,13 @@ services:
             - '%app_config%'
         public: true
 
-    # BlocklistImportService
+    # BlocklistImportService - needs Connection from db_handler
     blocklist_import_service:
         class: Baluarte\Service\BlocklistImportService
+        factory:
+            - '@db_handler'
+            - 'getConnection'
         arguments:
-            - '@db_handler.getConnection'
             - '@http_client'
             - '@logger'
         public: true

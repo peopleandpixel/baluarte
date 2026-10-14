@@ -14,7 +14,7 @@ class BlocklistImportServiceTest extends TestCase
 {
     public function testGetSourcesReturnsDefaultSources(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
         $service = new BlocklistImportService($connection);
 
         $sources = $service->getSources();
@@ -26,7 +26,7 @@ class BlocklistImportServiceTest extends TestCase
 
     public function testSetSources(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
         $service = new BlocklistImportService($connection);
 
         $customSources = [
@@ -43,7 +43,7 @@ class BlocklistImportServiceTest extends TestCase
 
     public function testImportSourceWithEmptyUrl(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())
             ->method('warning');
@@ -56,11 +56,11 @@ class BlocklistImportServiceTest extends TestCase
 
     public function testImportSourceWithHttpError(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
         $logger = $this->createMock(LoggerInterface::class);
         $logger->expects($this->once())->method('error');
 
-        $client = $this->createMock(Client::class);
+        $client = $this->createStub(Client::class);
         $client->method('get')->willThrowException(new class extends \RuntimeException implements GuzzleException {});
 
         $service = new BlocklistImportService($connection, $client, $logger);
@@ -82,7 +82,7 @@ class BlocklistImportServiceTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects($this->once())->method('get')->willReturn($response);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $service = new BlocklistImportService($connection, $client, $logger);
         $result = $service->importSource('test', ['url' => 'https://example.com/list.txt', 'format' => 'iponly']);
@@ -103,7 +103,7 @@ class BlocklistImportServiceTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects($this->once())->method('get')->willReturn($response);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $service = new BlocklistImportService($connection, $client, $logger);
         $result = $service->importSource('test', ['url' => 'https://example.com/list.txt', 'format' => 'csv']);
@@ -124,7 +124,7 @@ class BlocklistImportServiceTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects($this->once())->method('get')->willReturn($response);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $service = new BlocklistImportService($connection, $client, $logger);
         $result = $service->importSource('test', ['url' => 'https://example.com/list.txt', 'format' => 'cidr']);
@@ -145,7 +145,7 @@ class BlocklistImportServiceTest extends TestCase
         $client = $this->createMock(Client::class);
         $client->expects($this->once())->method('get')->willReturn($response);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $service = new BlocklistImportService($connection, $client, $logger);
         $result = $service->importSource('test', ['url' => 'https://example.com/list.txt']);
@@ -155,7 +155,7 @@ class BlocklistImportServiceTest extends TestCase
 
     public function testImportSourceWithEmptyResponse(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
 
         $response = new Response(200, [], '');
 
@@ -173,13 +173,13 @@ class BlocklistImportServiceTest extends TestCase
 
     public function testImportAll(): void
     {
-        $connection = $this->createMock(Connection::class);
+        $connection = $this->createStub(Connection::class);
 
         $response = new Response(200, [], '192.168.1.1');
-        $client = $this->createMock(Client::class);
+        $client = $this->createStub(Client::class);
         $client->method('get')->willReturn($response);
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $service = new BlocklistImportService($connection, $client, $logger);
         $results = $service->importAll();

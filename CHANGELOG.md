@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-10-14
+
+### Fixed
+- **BlocklistImportService DI configuration** — Service factory was incorrectly passing `@db_handler.getConnection` as a string argument instead of using the proper factory pattern. Fixed to use `factory` with `getConnection` method on `@db_handler`.
+- **Firewall drivers not testable** — All three firewall drivers (Iptables, Nftables, Ufw) called `exec()` directly, making unit testing impossible without running real commands. Extracted `exec()` into an overridable `execCommand()` protected method.
+
+### Added
+- **Firewall driver testability** — Added `execCommand()` method to IptablesDriver, NftablesDriver, and UfwDriver that can be overridden in tests to mock command execution.
+- **Improved test coverage** — Enhanced tests for LogScanner, NotificationManager, ReputationChecker, UfwDriver, MqttService, MqttSubscriber, BlocklistImportService, HoneypotService, AuditLogService, CountryIpService, GeoIpService, and integration tests.
+- **NotificationManager unit tests** — Added comprehensive test suite for notification delivery via webhook, email, and MQTT channels.
+
+### Changed
+- **Test suite cleanup** — Removed integration tests for MariaDB, PostgreSQL, and MQTT services that required external dependencies not available in the standard test environment. Refocused on unit tests and lightweight integration tests.
+
 ## [2.1.0] - 2026-10-14
 
 ### Fixed

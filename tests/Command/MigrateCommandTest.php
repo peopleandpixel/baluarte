@@ -81,4 +81,5 @@ class MigrateCommandTest extends TestCase
         
         $this->assertContains('audit_log', $tables);
     }
+
 }

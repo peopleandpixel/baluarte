@@ -44,7 +44,7 @@ class CountryIpServiceExtendedTest extends TestCase
         file_put_contents($cacheFile, "1.0.0.0/24\n2.0.0.0/24");
         touch($cacheFile, time() - 3600); // 1 hour ago
 
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
         $service = new CountryIpService($this->cacheDir, $logger);
 
         $ranges = $service->getIpRanges('US');

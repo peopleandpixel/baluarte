@@ -134,4 +134,20 @@ class ExportCommandTest extends TestCase
         $this->assertStringContainsString('1.1.1.1', $output);
         $this->assertEquals(0, $tester->getStatusCode());
     }
+
+    public function testExportStixFormat(): void
+    {
+        $this->dbHandler->saveIp('1.1.1.1', 'Brute force', 'auth.log');
+        
+        $tester = new CommandTester($this->command);
+        $tester->execute([
+            '--type' => 'threats',
+            '--format' => 'stix',
+        ]);
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('bundle', $output);
+        $this->assertStringContainsString('indicator', $output);
+        $this->assertEquals(0, $tester->getStatusCode());
+    }
 }

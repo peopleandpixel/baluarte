@@ -19,9 +19,7 @@ class NftablesDriver implements FirewallDriverInterface
         // Assuming a table named 'filter' and a chain named 'input' exist
         // and a set named 'denylist' exists in that table
         $cmd = sprintf('sudo nft add element inet filter denylist { %s }', escapeshellarg($ip));
-        exec($cmd, $output, $returnVar);
-
-        return $returnVar === 0;
+        return $this->execCommand($cmd) === 0;
     }
 
     /**
@@ -30,9 +28,7 @@ class NftablesDriver implements FirewallDriverInterface
     public function unblockIp(string $ip): bool
     {
         $cmd = sprintf('sudo nft delete element inet filter denylist { %s }', escapeshellarg($ip));
-        exec($cmd, $output, $returnVar);
-
-        return $returnVar === 0;
+        return $this->execCommand($cmd) === 0;
     }
 
     /**
@@ -41,9 +37,7 @@ class NftablesDriver implements FirewallDriverInterface
     public function blockRange(string $target): bool
     {
         $cmd = sprintf('sudo nft add element inet filter denylist { %s }', escapeshellarg($target));
-        exec($cmd, $output, $returnVar);
-
-        return $returnVar === 0;
+        return $this->execCommand($cmd) === 0;
     }
 
     /**
@@ -52,9 +46,20 @@ class NftablesDriver implements FirewallDriverInterface
     public function unblockRange(string $target): bool
     {
         $cmd = sprintf('sudo nft delete element inet filter denylist { %s }', escapeshellarg($target));
-        exec($cmd, $output, $returnVar);
+        return $this->execCommand($cmd) === 0;
+    }
 
-        return $returnVar === 0;
+    /**
+     * Executes a shell command and returns the exit code.
+     * Override this method in tests to avoid running real commands.
+     *
+     * @param string $cmd The command to execute.
+     * @return int The exit code.
+     */
+    protected function execCommand(string $cmd): int
+    {
+        exec($cmd, $output, $returnVar);
+        return $returnVar;
     }
 
     /**

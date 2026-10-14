@@ -39,11 +39,13 @@ abstract class IntegrationTestCase extends TestCase
 
         if (!static::isDockerAvailable()) {
             $this->markTestSkipped('Docker is not available');
+            return;
         }
 
         foreach ($this->getRequiredExtensions() as $ext) {
             if (!extension_loaded($ext)) {
                 $this->markTestSkipped(sprintf('PHP extension "%s" is not loaded', $ext));
+                return;
             }
         }
     }

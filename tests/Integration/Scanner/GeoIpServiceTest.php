@@ -7,7 +7,7 @@ namespace Baluarte\Tests\Integration\Scanner;
 use Baluarte\Scanner\GeoIpService;
 use Baluarte\Tests\Integration\IntegrationTestCase;
 use Psr\Log\NullLogger;
-use Symfony\Component\Cache\Adapter\ArrayCache;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
  * Integration tests for GeoIpService with a real MaxMind GeoLite2 database.
@@ -57,7 +57,7 @@ class GeoIpServiceTest extends IntegrationTestCase
 
     public function testLookupWithCache(): void
     {
-        $cache = new ArrayCache();
+        $cache = new ArrayAdapter();
         $service = new GeoIpService($this->dbPath, new NullLogger(), $cache);
 
         // First call should hit the database
@@ -81,7 +81,7 @@ class GeoIpServiceTest extends IntegrationTestCase
 
     public function testLookupIpsWithCache(): void
     {
-        $cache = new ArrayCache();
+        $cache = new ArrayAdapter();
         $service = new GeoIpService($this->dbPath, new NullLogger(), $cache);
 
         $results = $service->lookupIps(['8.8.8.8', '1.1.1.1']);

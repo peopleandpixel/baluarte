@@ -7,85 +7,57 @@ namespace Baluarte\Tests\Integration\Scanner;
 use Baluarte\Scanner\ReputationChecker;
 use Baluarte\Tests\Integration\IntegrationTestCase;
 use GuzzleHttp\Client;
-use Psr\Log\NullLogger;
-use Symfony\Component\Cache\Adapter\ArrayCache;
-use Testcontainers\Container\GenericContainer;
-use Testcontainers\Container\StartedGenericContainer;
-use Testcontainers\Wait\WaitForHttp;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Psr7\Response;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 /**
- * Integration tests for ReputationChecker with a mock HTTP server.
+ * Integration tests for ReputationChecker with a mock HTTP handler.
  * 
- * These tests use a simple PHP HTTP server container that mimics the AbuseIPDB API
- * to verify that reputation checks work correctly with real HTTP requests.
+ * These tests use Guzzle's MockHandler to simulate the AbuseIPDB API
+ * without requiring a real HTTP server container.
  */
 class ReputationCheckerTest extends IntegrationTestCase
 {
-    private ?StartedGenericContainer $container = null;
-    private string $host;
-    private int $port;
-
-    protected function setUp(): void
+    private function createMockResponse(string $ip): Response
     {
-        parent::setUp();
+        $body = json_encode([
+            'data' => [
+                'ipAddress' => $ip,
+                'isPublic' => true,
+                'usageType' => 'UNKNOWN',
+                'countryCode' => 'US',
+                'totalReports' => 10,
+                'numDistinctSource' => 5,
+                'lastReportedAt' => time(),
+            ]
+        ]);
 
-        // Start a simple mock HTTP server using a PHP container
-        $this->container = (new GenericContainer('php:8.4-cli-alpine'))
-            ->withExposedPorts(8080)
-            ->withTmpfs('/app')
-            ->withCommand(['php', '-r', '
-                $sock = stream_socket_server("tcp://0.0.0.0:8080", $code);
-                while ($conn = stream_socket_accept($sock)) {
-                    $request = stream_get_contents($conn);
-                    $path = parse_url(explode(" ", explode("\r\n", $request)[0])[1], PHP_URL_PATH);
-                    $query = [];
-                    if (preg_match("/\?(.*)/", explode("\r\n", $request)[0], $m)) {
-                        parse_str($m[1], $query);
-                    }
-                    $ip = $query["ipAddress"] ?? "unknown";
-                    $response = [
-                        "data" => [
-                            "ipAddress" => $ip,
-                            "isPublic" => true,
-                            "usageType" => "UNKNOWN",
-                            "countryCode" => "US",
-                            "totalReports" => 10,
-                            "numDistinctSource" => 5,
-                            "lastReportedAt" => time(),
-                        ]
-                    ];
-                    $body = json_encode($response);
-                    $resp = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " . strlen($body) . "\r\nConnection: close\r\n\r\n" . $body;
-                    fwrite($conn, $resp);
-                    fclose($conn);
-                }
-            '])
-            ->withWait(new WaitForHttp('/'))
-            ->start();
-
-        $this->host = $this->container->getHost();
-        $this->port = $this->container->getMappedPort(8080);
+        return new Response(200, ['Content-Type' => 'application/json'], $body);
     }
 
-    protected function tearDown(): void
+    private function createChecker(?string $apiKey = 'test-api-key', ?ArrayAdapter $cache = null, array $responses = []): ReputationChecker
     {
-        if ($this->container !== null) {
-            $this->container->stop();
-        }
-        parent::tearDown();
+        $mock = new MockHandler($responses);
+        $handlerStack = HandlerStack::create($mock);
+
+        $client = new Client([
+            'base_uri' => 'https://api.abuseipdb.com/api/v2/',
+            'handler' => $handlerStack,
+            'headers' => [
+                'Accept' => 'application/json',
+                'Key' => (string)$apiKey,
+            ],
+        ]);
+
+        return new ReputationChecker($apiKey, $client, $cache);
     }
 
     public function testCheckIpWithMockServer(): void
     {
-        $client = new Client([
-            'base_uri' => sprintf('http://%s:%d/', $this->host, $this->port),
-            'headers' => [
-                'Accept' => 'application/json',
-                'Key' => 'test-api-key',
-            ],
-        ]);
-
-        $checker = new ReputationChecker('test-api-key', $client);
+        $responses = [$this->createMockResponse('1.1.1.1')];
+        $checker = $this->createChecker('test-api-key', null, $responses);
 
         $result = $checker->checkIp('1.1.1.1');
 
@@ -96,37 +68,26 @@ class ReputationCheckerTest extends IntegrationTestCase
 
     public function testCheckIpWithCache(): void
     {
-        $client = new Client([
-            'base_uri' => sprintf('http://%s:%d/', $this->host, $this->port),
-            'headers' => [
-                'Accept' => 'application/json',
-                'Key' => 'test-api-key',
-            ],
-        ]);
-
-        $cache = new ArrayCache();
-        $checker = new ReputationChecker('test-api-key', $client, $cache);
+        $cache = new ArrayAdapter();
+        $responses = [$this->createMockResponse('1.1.1.1')];
+        $checker = $this->createChecker('test-api-key', $cache, $responses);
 
         // First call should hit the mock server
         $result1 = $checker->checkIp('1.1.1.1');
         $this->assertArrayHasKey('ipAddress', $result1);
 
-        // Second call should use cache
+        // Second call should use cache (no additional mock response needed)
         $result2 = $checker->checkIp('1.1.1.1');
         $this->assertEquals($result1, $result2);
     }
 
     public function testCheckIpsWithoutCache(): void
     {
-        $client = new Client([
-            'base_uri' => sprintf('http://%s:%d/', $this->host, $this->port),
-            'headers' => [
-                'Accept' => 'application/json',
-                'Key' => 'test-api-key',
-            ],
-        ]);
-
-        $checker = new ReputationChecker('test-api-key', $client);
+        $responses = [
+            $this->createMockResponse('1.1.1.1'),
+            $this->createMockResponse('2.2.2.2'),
+        ];
+        $checker = $this->createChecker('test-api-key', null, $responses);
 
         $results = $checker->checkIps(['1.1.1.1', '2.2.2.2']);
 
@@ -138,16 +99,12 @@ class ReputationCheckerTest extends IntegrationTestCase
 
     public function testCheckIpsWithCache(): void
     {
-        $client = new Client([
-            'base_uri' => sprintf('http://%s:%d/', $this->host, $this->port),
-            'headers' => [
-                'Accept' => 'application/json',
-                'Key' => 'test-api-key',
-            ],
-        ]);
-
-        $cache = new ArrayCache();
-        $checker = new ReputationChecker('test-api-key', $client, $cache);
+        $cache = new ArrayAdapter();
+        $responses = [
+            $this->createMockResponse('1.1.1.1'),
+            $this->createMockResponse('2.2.2.2'),
+        ];
+        $checker = $this->createChecker('test-api-key', $cache, $responses);
 
         $results = $checker->checkIps(['1.1.1.1', '2.2.2.2']);
 
@@ -177,19 +134,22 @@ class ReputationCheckerTest extends IntegrationTestCase
 
     public function testCheckIpReturnsCountryCode(): void
     {
-        $client = new Client([
-            'base_uri' => sprintf('http://%s:%d/', $this->host, $this->port),
-            'headers' => [
-                'Accept' => 'application/json',
-                'Key' => 'test-api-key',
-            ],
-        ]);
-
-        $checker = new ReputationChecker('test-api-key', $client);
+        $responses = [$this->createMockResponse('1.1.1.1')];
+        $checker = $this->createChecker('test-api-key', null, $responses);
 
         $result = $checker->checkIp('1.1.1.1');
 
         $this->assertEquals('US', $result['countryCode']);
         $this->assertTrue($result['isPublic']);
+    }
+
+    public function testCheckIpWithErrorResponse(): void
+    {
+        $responses = [new Response(500, ['Content-Type' => 'application/json'], '{"error": "Server error"}')];
+        $checker = $this->createChecker('test-api-key', null, $responses);
+
+        $result = $checker->checkIp('1.1.1.1');
+
+        $this->assertArrayHasKey('error', $result);
     }
 }

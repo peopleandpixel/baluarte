@@ -82,7 +82,7 @@ abstract class BaseController
             $_SESSION['locale'] = $_GET['lang'];
         }
 
-        $this->locale = $_SESSION['locale'] ?? null;
+        $this->locale = $_SESSION['locale'] ?? $defaultLocale;
         if (!$this->locale) {
             $accept = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
             if ($accept) {
@@ -95,15 +95,16 @@ abstract class BaseController
             $this->locale = $defaultLocale;
         }
 
-        $localesPath = __DIR__ . '/../../locales';
+        $localesPath = __DIR__ . '/../../../locales';
         $this->translator = new AppTranslator($this->locale, $localesPath, $defaultLocale);
     }
 
     private function initLatte(): void
     {
         $this->latte = new Engine();
-        $this->latte->setTempDirectory(__DIR__ . '/../../data/cache');
-        $this->latte->addExtension(new TranslatorExtension([$this->translator, 'translate'], $this->translator->getLocale()));
+        $tempDir = __DIR__ . '/../../data/cache';
+        $this->latte->setTempDirectory($tempDir);
+        $this->latte->addExtension(new TranslatorExtension([$this->translator, 'translate']));
     }
 
     /**
@@ -113,7 +114,7 @@ abstract class BaseController
      */
     protected function render(string $template, array $data = []): void
     {
-        $this->latte->render(__DIR__ . '/../../templates/' . $template, array_merge([
+        $this->latte->render(__DIR__ . '/../../../templates/' . $template, array_merge([
             'locale' => $this->translator->getLocale(),
             'availableLocales' => $this->availableLocales,
             'config' => $this->config,

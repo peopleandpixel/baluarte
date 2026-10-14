@@ -40,6 +40,36 @@ class Version20260204000000 implements MigrationInterface
             $maliciousIpsTable->addUniqueIndex(['ip_address', 'reason']);
             $maliciousIpsTable->addIndex(['ip_address'], 'idx_ip_address');
             $maliciousIpsTable->addIndex(['detected_at'], 'idx_detected_at');
+        } else {
+            // Add missing columns to existing table (for databases created before this migration)
+            $maliciousIpsTable = $schema->getTable('malicious_ips');
+            if (!$maliciousIpsTable->hasColumn('latitude')) {
+                $maliciousIpsTable->addColumn('latitude', 'float', ['notnull' => false]);
+            }
+            if (!$maliciousIpsTable->hasColumn('longitude')) {
+                $maliciousIpsTable->addColumn('longitude', 'float', ['notnull' => false]);
+            }
+            if (!$maliciousIpsTable->hasColumn('city')) {
+                $maliciousIpsTable->addColumn('city', 'string', ['notnull' => false]);
+            }
+            if (!$maliciousIpsTable->hasColumn('isp')) {
+                $maliciousIpsTable->addColumn('isp', 'string', ['notnull' => false]);
+            }
+            if (!$maliciousIpsTable->hasColumn('country')) {
+                $maliciousIpsTable->addColumn('country', 'string', ['notnull' => false]);
+            }
+            if (!$maliciousIpsTable->hasColumn('detected_at')) {
+                $maliciousIpsTable->addColumn('detected_at', 'datetime', ['default' => 'CURRENT_TIMESTAMP']);
+            }
+            if (!$maliciousIpsTable->hasIndex('idx_ip_address')) {
+                $maliciousIpsTable->addIndex(['ip_address'], 'idx_ip_address');
+            }
+            if (!$maliciousIpsTable->hasIndex('idx_detected_at')) {
+                $maliciousIpsTable->addIndex(['detected_at'], 'idx_detected_at');
+            }
+            if (!$maliciousIpsTable->hasIndex('UNIQ_82127D3B22FFD58C3BB8880C')) {
+                $maliciousIpsTable->addUniqueIndex(['ip_address', 'reason']);
+            }
         }
 
         if (!$schema->hasTable('active_bans')) {

@@ -32,7 +32,8 @@ class DashboardController extends BaseController
 
         $this->render('dashboard.latte', [
             'page' => 'dashboard',
-            'detectedIps' => json_encode($detectedIps),
+            'detectedIps' => $detectedIps,
+            'detectedIpsJson' => json_encode($detectedIps),
             'detectedIpsCount' => $detectedIpsCount,
             'activeBansDetailed' => $activeBansDetailed,
             'activeBansCount' => $activeBansCount,
