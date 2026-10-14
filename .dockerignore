@@ -1,0 +1,43 @@
+# Dependencies
+vendor/
+composer.lock
+
+# Version control
+.git/
+.gitignore
+
+# Tests and CI
+tests/
+phpunit.xml
+phpstan.neon
+
+# Logs and data
+logs/
+*.sqlite
+data/cache/
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment and config
+.env
+.env.*
+config/config.yaml
+
+# Documentation
+docs/
+screenshots/
+
+# Docker
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Misc
+qodana.yaml
+*.log

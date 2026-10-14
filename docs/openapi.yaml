@@ -1,0 +1,382 @@
+# Baluarte REST API
+
+OpenAPI 3.0 specification for the Baluarte REST API.
+
+---
+
+openapi: "3.0.3"
+info:
+  title: Baluarte REST API
+  version: "1.0.0"
+  description: |
+    REST API for managing IP bans, viewing threats, and configuring Baluarte settings.
+    All API endpoints require JWT authentication if configured.
+    
+    Authentication: Include a Bearer token in the Authorization header:
+    ```
+    Authorization: Bearer <your-jwt-token>
+    ```
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /api/bans:
+    get:
+      summary: Get all active bans
+      tags:
+        - Bans
+      responses:
+        "200":
+          description: List of active bans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Ban"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      summary: Add a new ban
+      tags:
+        - Bans
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - target
+              properties:
+                target:
+                  type: string
+                  description: IP address or country code to ban
+                  example: "192.168.1.100"
+                duration:
+                  type: integer
+                  description: Ban duration in minutes (default: 1440)
+                  example: 1440
+                type:
+                  type: string
+                  description: Ban type (ip, country)
+                  enum: [ip, country]
+                  example: "ip"
+      responses:
+        "200":
+          description: Ban added successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          description: Missing target parameter
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/bans/{ip}:
+    delete:
+      summary: Remove a ban
+      tags:
+        - Bans
+      parameters:
+        - name: ip
+          in: path
+          required: true
+          schema:
+            type: string
+          description: IP address or country code to unban
+          example: "192.168.1.100"
+      responses:
+        "200":
+          description: Ban removed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/threats:
+    get:
+      summary: Get detected threats
+      tags:
+        - Threats
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+          description: Maximum number of threats to return
+      responses:
+        "200":
+          description: List of detected threats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Threat"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/whitelist:
+    get:
+      summary: Get whitelist configuration
+      tags:
+        - Configuration
+      responses:
+        "200":
+          description: Whitelist configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ips:
+                    type: array
+                    items:
+                      type: string
+                  countries:
+                    type: array
+                    items:
+                      type: string
+
+  /api/settings:
+    get:
+      summary: Get all settings
+      tags:
+        - Configuration
+      responses:
+        "200":
+          description: All configuration settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  /api/stats/threats-hour:
+    get:
+      summary: Get threat counts by hour (last 24 hours)
+      tags:
+        - Statistics
+      responses:
+        "200":
+          description: Threat counts grouped by hour
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    hour:
+                      type: string
+                      format: date-time
+                    count:
+                      type: integer
+
+  /api/stats/threats-day:
+    get:
+      summary: Get threat counts by day (last 30 days)
+      tags:
+        - Statistics
+      responses:
+        "200":
+          description: Threat counts grouped by day
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    day:
+                      type: string
+                      format: date
+                    count:
+                      type: integer
+
+  /api/stats/threats-week:
+    get:
+      summary: Get threat counts by week (last 12 weeks)
+      tags:
+        - Statistics
+      responses:
+        "200":
+          description: Threat counts grouped by week
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    week:
+                      type: string
+                    count:
+                      type: integer
+
+  /api/stats/countries:
+    get:
+      summary: Get top attacking countries
+      tags:
+        - Statistics
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of countries to return
+      responses:
+        "200":
+          description: Top countries by threat count
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    country:
+                      type: string
+                    count:
+                      type: integer
+
+  /api/stats/attack-types:
+    get:
+      summary: Get attack type distribution
+      tags:
+        - Statistics
+      responses:
+        "200":
+          description: Attack types by count
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    reason:
+                      type: string
+                    count:
+                      type: integer
+
+  /api/stats/ban-timeline:
+    get:
+      summary: Get ban expiration timeline (next 24 hours)
+      tags:
+        - Statistics
+      responses:
+        "200":
+          description: Ban expirations grouped by hour
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    hour:
+                      type: string
+                      format: date-time
+                    count:
+                      type: integer
+
+components:
+  schemas:
+    Ban:
+      type: object
+      properties:
+        id:
+          type: integer
+        target:
+          type: string
+          description: IP address or country code
+        banned_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [ip, country]
+
+    Threat:
+      type: object
+      properties:
+        id:
+          type: integer
+        ip:
+          type: string
+          description: IP address
+        reason:
+          type: string
+          description: Detection reason
+        log_source:
+          type: string
+          description: Log file or source
+        country:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        isp:
+          type: string
+          nullable: true
+        latitude:
+          type: number
+          format: float
+          nullable: true
+        longitude:
+          type: number
+          format: float
+          nullable: true
+        detected_at:
+          type: string
+          format: date-time
+
+    Settings:
+      type: object
+      properties:
+        database:
+          type: object
+        cache:
+          type: object
+        firewall:
+          type: object
+        whitelist:
+          type: object
+        notifications:
+          type: object
+        patterns:
+          type: object
+        gui:
+          type: object
+
+  responses:
+    Unauthorized:
+      description: JWT authentication failed or missing
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Unauthorized: Missing or invalid token format"

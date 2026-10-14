@@ -1,0 +1,225 @@
+# Baluarte Service Container Configuration
+# Loaded by baluarte.php via Symfony DependencyInjection Component
+# Parameters are set by baluarte.php from config.yaml before loading this file.
+
+services:
+    # Defaults for all services
+    _defaults:
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    # Configuration
+    config:
+        class: Baluarte\Service\Configuration
+        arguments:
+            - '%app_config%'
+        public: true
+
+    # Logger
+    logger:
+        class: Monolog\Logger
+        arguments:
+            - 'baluarte'
+        calls:
+            - ['pushHandler', ['@logger.handler']]
+        public: true
+
+    logger.handler:
+        class: Monolog\Handler\RotatingFileHandler
+        arguments:
+            - '%log_path%'
+            - '%logging_max_files%'
+            - !php/const Monolog\Logger::DEBUG
+
+    # Event Dispatcher
+    event_dispatcher:
+        class: Symfony\Component\EventDispatcher\EventDispatcher
+        public: true
+        calls:
+            - ['addSubscriber', ['@logger_subscriber']]
+            - ['addSubscriber', ['@mqtt_subscriber']]
+
+    # DatabaseHandler
+    db_handler:
+        class: Baluarte\Database\DatabaseHandler
+        arguments:
+            - '%database_config%'
+            - '@logger'
+            - '@event_dispatcher'
+        public: true
+
+    # MQTT Service
+    mqtt_service:
+        class: Baluarte\Service\MqttService
+        arguments:
+            - '%mqtt_config%'
+            - '@logger'
+        public: true
+
+    # LogScanner
+    log_scanner:
+        class: Baluarte\Scanner\LogScanner
+        arguments:
+            - '%patterns%'
+            - '@logger'
+        public: true
+
+    # Shared HTTP Client for connection pooling
+    http_client:
+        class: GuzzleHttp\Client
+        arguments:
+            - { timeout: 10, connect_timeout: 5 }
+        public: true
+
+    # ReputationChecker
+    reputation_checker:
+        class: Baluarte\Scanner\ReputationChecker
+        arguments:
+            - '%abuseipdb_key%'
+            - '@http_client'
+            - '@cache'
+        public: true
+
+    # FirewallManager is registered dynamically in baluarte.php
+    # because it requires Reference objects that cannot be stored in parameters
+
+    # NotificationManager
+    notification_manager:
+        class: Baluarte\Scanner\NotificationManager
+        arguments:
+            - '%notifications_config%'
+            - '@http_client'
+            - '@cache'
+            - '@logger'
+        public: true
+
+    # WhitelistManager
+    whitelist_manager:
+        class: Baluarte\Scanner\WhitelistManager
+        arguments:
+            - '%whitelist_ips%'
+            - '%whitelist_countries%'
+        public: true
+
+    # GeoIpService
+    geoip_service:
+        class: Baluarte\Scanner\GeoIpService
+        arguments:
+            - '%geoip_database_path%'
+            - '@logger'
+            - '@cache'
+        public: true
+
+    # DnsblService
+    dnsbl_service:
+        class: Baluarte\Scanner\DnsblService
+        arguments:
+            - '%dnsbl_config%'
+            - '@cache'
+        public: true
+
+    # ExportService
+    export_service:
+        class: Baluarte\Service\ExportService
+        public: true
+
+    # HoneypotService
+    honeypot_service:
+        class: Baluarte\Service\HoneypotService
+        arguments:
+            - '@db_handler'
+            - '@firewall_manager'
+            - '@whitelist_manager'
+            - '@logger'
+            - '@cache'
+            - '@config'
+        public: true
+
+    # Subscribers
+    logger_subscriber:
+        class: Baluarte\Subscriber\LoggerSubscriber
+        arguments:
+            - '@logger'
+
+    mqtt_subscriber:
+        class: Baluarte\Subscriber\MqttSubscriber
+        arguments:
+            - '@mqtt_service'
+            - '%mqtt_enabled%'
+
+    # ScanService
+    scan_service:
+        class: Baluarte\Service\ScanService
+        arguments:
+            - '@log_scanner'
+            - '@db_handler'
+            - '@reputation_checker'
+            - '@firewall_manager'
+            - '@notification_manager'
+            - '@whitelist_manager'
+            - '@geoip_service'
+            - '@dnsbl_service'
+            - '@event_dispatcher'
+            - '@logger'
+            - '@cache'
+            - '@config'
+        public: true
+
+    # Commands
+    scan_command:
+        class: Baluarte\Command\ScanCommand
+        arguments:
+            - '@scan_service'
+            - '@db_handler'
+        public: true
+
+    serve_command:
+        class: Baluarte\Command\ServeCommand
+        public: true
+
+    export_command:
+        class: Baluarte\Command\ExportCommand
+        arguments:
+            - '@db_handler'
+            - '@export_service'
+        public: true
+
+    migrate_command:
+        class: Baluarte\Command\MigrateCommand
+        arguments:
+            - '@db_handler'
+        public: true
+
+    mqtt_listen_command:
+        class: Baluarte\Command\MqttListenCommand
+        arguments:
+            - '@mqtt_service'
+            - '@firewall_manager'
+            - '@db_handler'
+            - '@logger'
+            - '%mqtt_config%'
+        public: true
+
+    honeypot_http_command:
+        class: Baluarte\Command\HoneypotHttpCommand
+        arguments:
+            - '@honeypot_service'
+            - '%app_config%'
+        public: true
+
+    # BlocklistImportService
+    blocklist_import_service:
+        class: Baluarte\Service\BlocklistImportService
+        arguments:
+            - '@db_handler.getConnection'
+            - '@http_client'
+            - '@logger'
+        public: true
+
+    # ImportCommand
+    import_command:
+        class: Baluarte\Command\ImportCommand
+        arguments:
+            - '@blocklist_import_service'
+        public: true
