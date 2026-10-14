@@ -17,6 +17,7 @@ return [
     'login.submit' => 'Sign in',
     'login.error.password' => 'Invalid password',
     'login.error.2fa' => 'Invalid 2FA code',
+    'login.error.rate_limited' => 'Too many login attempts. Please try again later.',
 
     // Dashboard
     'dashboard.title' => 'Dashboard',

@@ -13,8 +13,8 @@ class ReportGenerator
 {
     /**
      * Generates an HTML report of detected IPs.
-     * 
-     * @param array $ips Array of detected IP data.
+     *
+     * @param list<array<string, string>> $ips Array of detected IP data.
      * @param string $outputPath Path where the HTML report will be saved.
      */
     public function generateHtml(array $ips, string $outputPath = 'report.html'): void

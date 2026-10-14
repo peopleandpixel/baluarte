@@ -46,7 +46,9 @@ class ScanCommand extends Command
             ->addOption('report', 'r', InputOption::VALUE_NONE, 'Generate HTML report')
             ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Database batch size', 100)
             ->addOption('tail', 't', InputOption::VALUE_NONE, 'Tail log files for real-time scanning')
-            ->addOption('dry-run', 'd', InputOption::VALUE_NONE, 'Run without actually blocking IPs');
+            ->addOption('dry-run', 'd', InputOption::VALUE_NONE, 'Run without actually blocking IPs')
+            ->addOption('daemon', null, InputOption::VALUE_NONE, 'Run in daemon mode (continuous scanning)')
+            ->addOption('interval', 'i', InputOption::VALUE_OPTIONAL, 'Daemon scan interval in seconds', 300);
     }
 
     /**
@@ -67,6 +69,8 @@ class ScanCommand extends Command
         $generateReport = $input->getOption('report');
         $tail = $input->getOption('tail');
         $dryRun = $input->getOption('dry-run');
+        $daemon = $input->getOption('daemon');
+        $interval = (int)$input->getOption('interval');
 
         $io->title('Baluarte Log Scanner');
 
@@ -75,6 +79,33 @@ class ScanCommand extends Command
             $this->scanService->setDryRun(true);
         }
 
+        if ($daemon) {
+            $io->warning("Daemon mode enabled. Scanning every {$interval} seconds. Press Ctrl+C to stop.");
+            return $this->runDaemon($io, $logFiles, $batchSize, $interval, $dryRun);
+        }
+
+        return $this->runSingleScan($io, $logFiles, $batchSize, $generateReport, $tail, $dryRun);
+    }
+
+    /**
+     * Run a single scan cycle.
+     *
+     * @param SymfonyStyle $io SymfonyStyle instance for output.
+     * @param array<string> $logFiles Log files to scan.
+     * @param int $batchSize Database batch size.
+     * @param bool $generateReport Whether to generate HTML report.
+     * @param bool $tail Whether to tail log files.
+     * @param bool $dryRun Whether to run in dry-run mode.
+     * @return int Exit code.
+     */
+    private function runSingleScan(
+        SymfonyStyle $io,
+        array $logFiles,
+        int $batchSize,
+        bool $generateReport,
+        bool $tail,
+        bool $dryRun
+    ): int {
         $unbanned = $this->scanService->unbanExpiredIps();
         if (!empty($unbanned)) {
             $io->section('Unblocking expired targets');
@@ -143,6 +174,68 @@ class ScanCommand extends Command
             $io->text("... and " . (count($ips) - 10) . " more.");
         }
 
+        return Command::SUCCESS;
+    }
+
+    /**
+     * Run continuous daemon mode.
+     *
+     * @param SymfonyStyle $io SymfonyStyle instance for output.
+     * @param array<string> $logFiles Log files to scan.
+     * @param int $batchSize Database batch size.
+     * @param int $interval Scan interval in seconds.
+     * @param bool $dryRun Whether to run in dry-run mode.
+     * @return int Exit code.
+     */
+    private function runDaemon(
+        SymfonyStyle $io,
+        array $logFiles,
+        int $batchSize,
+        int $interval,
+        bool $dryRun
+    ): int {
+        // Register shutdown handler for graceful exit
+        register_shutdown_function(function () use ($io) {
+            $io->newLine();
+            $io->success('Daemon stopped.');
+        });
+
+        $scanCount = 0;
+        $running = true;
+        // @phpstan-ignore while.alwaysTrue
+        while ($running) {
+            try {
+                $scanCount++;
+                $io->newLine();
+                $io->title("Baluarte Daemon - Scan #{$scanCount} at " . date('Y-m-d H:i:s'));
+
+                $unbanned = $this->scanService->unbanExpiredIps();
+                if (!empty($unbanned)) {
+                    $io->text("Unblocked " . count($unbanned) . " expired targets.");
+                }
+
+                $cleanedUp = $this->scanService->cleanupOldEntries();
+                if ($cleanedUp > 0) {
+                    $io->text("Cleaned up $cleanedUp old entries.");
+                }
+
+                $lastScan = $this->db->getSetting('last_scan_timestamp');
+                foreach ($logFiles as $logFile) {
+                    $this->scanAndSave($logFile, $batchSize, $io, $lastScan, false);
+                }
+
+                $this->db->setSetting('last_scan_timestamp', date('Y-m-d H:i:s'));
+
+                $io->text("Next scan in {$interval} seconds...");
+                sleep($interval);
+
+            } catch (\Throwable $e) {
+                $io->error("Daemon error: " . $e->getMessage());
+                sleep($interval);
+            }
+        }
+
+        // @phpstan-ignore deadCode.unreachable
         return Command::SUCCESS;
     }
 

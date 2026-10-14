@@ -11,9 +11,9 @@ use Baluarte\Scanner\LogScanner;
 use Baluarte\Scanner\NotificationManager;
 use Baluarte\Scanner\ReputationCheckerInterface;
 use Baluarte\Scanner\WhitelistManager;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
@@ -109,17 +109,18 @@ class ScanService
 
     /**
      * Processes a batch of hits.
-     * 
-     * @param array $hits
+     *
+     * @param list<array{ip: string, reason: string, log_source: string, line: string, offset: int}> $hits
      * @param string $logFile
      * @param int $batchSize
      * @return int Number of saved hits.
      */
     public function processHits(array $hits, string $logFile, int $batchSize): int
     {
-        $ips = array_unique(array_column($hits, 'ip'));
+        $ips = array_values(array_unique(array_column($hits, 'ip')));
         $reputations = $this->reputationChecker->checkIps($ips);
         $dnsblResults = $this->dnsblService->checkIps($ips);
+        $geoResults = $this->geoIpService->lookupIps($ips);
 
         $toSave = [];
         foreach ($hits as $result) {
@@ -130,7 +131,7 @@ class ScanService
                 continue;
             }
 
-            $result['geo'] = $this->geoIpService->lookup($ip);
+            $result['geo'] = $geoResults[$ip] ?? [];
             $result['reputation'] = $reputations[$ip] ?? [];
             $result['dnsbl'] = $dnsblResults[$ip] ?? [];
 
@@ -151,6 +152,8 @@ class ScanService
 
             $count++;
 
+            // Update cache: Symfony adapters implement both CacheInterface and CacheItemPoolInterface,
+            // so we can use PSR-6 methods for write-through updates when available.
             if ($this->cache instanceof CacheItemPoolInterface) {
                 $item = $this->cache->getItem($cacheKey);
                 $item->set($count);
@@ -191,8 +194,8 @@ class ScanService
 
     /**
      * Unbans expired IPs.
-     * 
-     * @return array List of unbanned IPs.
+     *
+     * @return list<string> List of unbanned IPs.
      */
     public function unbanExpiredIps(): array
     {

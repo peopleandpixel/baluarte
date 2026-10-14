@@ -59,6 +59,9 @@ class MqttSubscriber implements EventSubscriberInterface
             'duration' => $event->getDuration(),
             'timestamp' => date('c'),
         ]);
+        if ($payload === false) {
+            return;
+        }
 
         $this->mqttService->publish('events/ban_added', $payload);
         
@@ -82,6 +85,9 @@ class MqttSubscriber implements EventSubscriberInterface
             'target' => $event->getTarget(),
             'timestamp' => date('c'),
         ]);
+        if ($payload === false) {
+            return;
+        }
 
         $this->mqttService->publish('events/ban_removed', $payload);
         
@@ -108,6 +114,9 @@ class MqttSubscriber implements EventSubscriberInterface
             'metadata' => $event->getMetadata(),
             'timestamp' => date('c'),
         ]);
+        if ($payload === false) {
+            return;
+        }
 
         $this->mqttService->publish('events/threat_detected', $payload);
     }

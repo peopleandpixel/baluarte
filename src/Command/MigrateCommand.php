@@ -4,6 +4,7 @@ namespace Baluarte\Command;
 
 use Baluarte\Database\DatabaseHandler;
 use Baluarte\Database\Migration\Version20260204000000;
+use Baluarte\Database\Migration\Version20261014000000;
 use Baluarte\Database\MigrationManager;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
@@ -43,6 +44,7 @@ class MigrateCommand extends Command
             // In a more advanced implementation, we could scan the migrations directory
             $migrations = [
                 new Version20260204000000(),
+                new Version20261014000000(),
             ];
 
             $migrationManager->migrate($migrations);

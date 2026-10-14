@@ -5,8 +5,9 @@ namespace Baluarte\Service;
 use Baluarte\Database\DatabaseHandler;
 use Baluarte\Scanner\FirewallManager;
 use Baluarte\Scanner\WhitelistManager;
-use Psr\Cache\CacheItemPoolInterface as CacheInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 class HoneypotService
 {
@@ -23,7 +24,7 @@ class HoneypotService
      * Record a honeypot hit and decide whether to ban the IP.
      *
      * @param string $ip
-     * @param array $meta
+     * @param array<string, mixed> $meta
      */
     public function recordHit(string $ip, array $meta = []): void
     {
@@ -41,13 +42,22 @@ class HoneypotService
         $logThinningTtl = (int)($hpCfg['log_thinning_ttl'] ?? 15); // seconds
 
         // Throttle identical logs for bursty attackers
-        $cacheKey = 'hp:lastlog:' . $ip;
-        $item = $this->cache->getItem(str_replace([':', '/'], '_', $cacheKey));
-        if (!$item->isHit()) {
-            $this->db->saveIp($ip, 'honeypot', $meta['source'] ?? 'honeypot', []);
-            $item->set(time());
+        $cacheKey = 'hp:lastlog:' . str_replace([':', '/'], '_', $ip);
+        $lastLogTime = $this->cache->get($cacheKey, function (ItemInterface $item) use ($logThinningTtl) {
             $item->expiresAfter($logThinningTtl);
-            $this->cache->save($item);
+            return 0;
+        });
+
+        // @phpstan-ignore-next-line (PHPStan cannot infer cache value type from CacheInterface)
+        if ($lastLogTime === 0) {
+            $this->db->saveIp($ip, 'honeypot', $meta['source'] ?? 'honeypot', []);
+            // Use PSR-6 for write-through since Symfony adapters implement both interfaces
+            if ($this->cache instanceof \Psr\Cache\CacheItemPoolInterface) {
+                $item = $this->cache->getItem($cacheKey);
+                $item->set(time());
+                $item->expiresAfter($logThinningTtl);
+                $this->cache->save($item);
+            }
         }
 
         // Threshold-based blocking

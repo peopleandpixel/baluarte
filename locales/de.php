@@ -12,6 +12,7 @@ return [
     'login.submit' => 'Anmelden',
     'login.error.password' => 'Ungültiges Passwort',
     'login.error.2fa' => 'Ungültiger 2FA-Code',
+    'login.error.rate_limited' => 'Zu viele Anmeldeversuche. Bitte versuchen Sie es später erneut.',
     'dashboard.title' => 'Übersicht',
     'dashboard.stats.active_bans' => 'Aktive Sperren',
     'dashboard.stats.threats_detected' => 'Erkannte Bedrohungen',

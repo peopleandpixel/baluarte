@@ -32,6 +32,46 @@
     </div>
 </div>
 
+<!-- Charts Section -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <!-- Threats over time chart -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Threats Over Time</h2>
+            <div class="flex gap-2 mb-4">
+                <button class="btn btn-xs btn-active chart-period-btn" data-period="hour">24h</button>
+                <button class="btn btn-xs chart-period-btn" data-period="day">30d</button>
+                <button class="btn btn-xs chart-period-btn" data-period="week">12w</button>
+            </div>
+            <canvas id="threatsTimeChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Top countries chart -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Top Attacking Countries</h2>
+            <canvas id="topCountriesChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Attack types chart -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Attack Types Distribution</h2>
+            <canvas id="attackTypesChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <!-- Ban timeline chart -->
+    <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title mb-4">Ban Expirations (Next 24h)</h2>
+            <canvas id="banTimelineChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
 <script type="application/json" id="initial-threats">
     {$detectedIps|noescape}
 </script>
@@ -104,25 +144,85 @@
 {/block}
 
 {block scripts}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script n:syntax="off">
+    // Chart.js configuration
+    const chartColors = {
+        primary: 'rgba(59, 130, 246, 0.6)',
+        primaryBorder: 'rgba(59, 130, 246, 1)',
+        warning: 'rgba(251, 191, 36, 0.6)',
+        warningBorder: 'rgba(251, 191, 36, 1)',
+        danger: 'rgba(239, 68, 68, 0.6)',
+        dangerBorder: 'rgba(239, 68, 68, 1)',
+        success: 'rgba(34, 197, 94, 0.6)',
+        successBorder: 'rgba(34, 197, 94, 1)',
+    };
+
+    const defaultChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                labels: { color: 'rgba(255,255,255,0.7)' }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { color: 'rgba(255,255,255,0.1)' }
+            },
+            y: {
+                ticks: { color: 'rgba(255,255,255,0.5)' },
+                grid: { color: 'rgba(255,255,255,0.1)' }
+            }
+        }
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
-        // Map initialization
-        const map = L.map('map').setView([20, 0], 2);
-        L.tileLayer('https://{1}.tile.openstreetmap.org/{2}/{3}/{4}.png'.replace('{1}','s').replace('{2}','z').replace('{3}','x').replace('{4}','y'), {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+        // Initialize charts
+        initCharts();
+
+        // Map initialization with MapLibre GL JS
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: 'https://lfmaps.fr/styles/osm-bright.json',
+            center: [0, 20],
+            zoom: 2,
+            attributionControl: true,
+            attributionCustom: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> / <a href="https://lfmaps.fr">LFMaps</a>'
+        });
+
+        map.addControl(new maplibregl.NavigationControl());
 
         const markers = {};
 
         function addMarker(data) {
             if (data.latitude && data.longitude) {
                 const markerKey = data.latitude + ',' + data.longitude;
+                const popupContent = '<b>' + (data.city || 'Unknown City') + ', ' + (data.country || 'Unknown Country') + '</b><br>' + data.ip + ' (' + data.reason + ')';
+                
                 if (markers[markerKey]) {
-                    markers[markerKey].setPopupContent(markers[markerKey].getPopup().getContent() + '<br>' + data.ip + ' (' + data.reason + ')');
+                    // Update existing marker popup
+                    const existingContent = markers[markerKey].getPopup().getElement().innerHTML;
+                    markers[markerKey].getPopup().setHTML(existingContent + '<br>' + data.ip + ' (' + data.reason + ')');
                 } else {
-                    markers[markerKey] = L.marker([data.latitude, data.longitude])
-                        .addTo(map)
-                        .bindPopup('<b>' + (data.city || 'Unknown City') + ', ' + (data.country || 'Unknown Country') + '</b><br>' + data.ip + ' (' + data.reason + ')');
+                    // Create new marker with popup
+                    const el = document.createElement('div');
+                    el.style.width = '12px';
+                    el.style.height = '12px';
+                    el.style.borderRadius = '50%';
+                    el.style.backgroundColor = '#ef4444';
+                    el.style.border = '2px solid #fca5a5';
+                    
+                    const popup = new maplibregl.Popup({ offset: 15 })
+                        .setHTML(popupContent);
+                    
+                    const marker = new maplibregl.Marker({ element: el })
+                        .setLngLat([data.longitude, data.latitude])
+                        .setPopup(popup)
+                        .addTo(map);
+                    
+                    markers[markerKey] = marker;
                 }
             }
         }
@@ -216,5 +316,209 @@
             console.error("EventSource failed:", err);
         };
     });
+
+    // Chart initialization functions
+    let threatsTimeChart = null;
+
+    function initCharts() {
+        loadThreatsByHour();
+        loadTopCountries();
+        loadAttackTypes();
+        loadBanTimeline();
+
+        // Period button handlers
+        document.querySelectorAll('.chart-period-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.chart-period-btn').forEach(b => b.classList.remove('btn-active'));
+                this.classList.add('btn-active');
+                const period = this.dataset.period;
+                if (period === 'hour') loadThreatsByHour();
+                else if (period === 'day') loadThreatsByDay();
+                else if (period === 'week') loadThreatsByWeek();
+            });
+        });
+    }
+
+    function loadThreatsByHour() {
+        fetch('/api/stats/threats-hour')
+            .then(r => r.json())
+            .then(data => {
+                renderThreatsTimeChart(data, 'hour');
+            })
+            .catch(err => console.error('Failed to load threats by hour:', err));
+    }
+
+    function loadThreatsByDay() {
+        fetch('/api/stats/threats-day')
+            .then(r => r.json())
+            .then(data => {
+                renderThreatsTimeChart(data, 'day');
+            })
+            .catch(err => console.error('Failed to load threats by day:', err));
+    }
+
+    function loadThreatsByWeek() {
+        fetch('/api/stats/threats-week')
+            .then(r => r.json())
+            .then(data => {
+                renderThreatsTimeChart(data, 'week');
+            })
+            .catch(err => console.error('Failed to load threats by week:', err));
+    }
+
+    function renderThreatsTimeChart(data, period) {
+        const ctx = document.getElementById('threatsTimeChart').getContext('2d');
+        const labels = data.map(d => period === 'hour' ? d.hour : period === 'day' ? d.day : d.week);
+        const counts = data.map(d => d.count);
+
+        if (threatsTimeChart) {
+            threatsTimeChart.destroy();
+        }
+
+        threatsTimeChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Threats',
+                    data: counts,
+                    borderColor: chartColors.primaryBorder,
+                    backgroundColor: chartColors.primary,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                ...defaultChartOptions,
+                scales: {
+                    ...defaultChartOptions.scales,
+                    y: {
+                        ...defaultChartOptions.scales.y,
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    function loadTopCountries() {
+        fetch('/api/stats/countries?limit=10')
+            .then(r => r.json())
+            .then(data => {
+                const ctx = document.getElementById('topCountriesChart').getContext('2d');
+                const labels = data.map(d => d.country);
+                const counts = data.map(d => d.count);
+                const colors = [
+                    chartColors.primary, chartColors.warning, chartColors.danger,
+                    chartColors.success, 'rgba(168, 85, 247, 0.6)', 'rgba(236, 72, 153, 0.6)',
+                    'rgba(20, 184, 166, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(99, 102, 241, 0.6)',
+                    'rgba(132, 204, 22, 0.6)'
+                ];
+                const borderColors = colors.map(c => c.replace('0.6', '1'));
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Threats',
+                            data: counts,
+                            backgroundColor: colors.slice(0, labels.length),
+                            borderColor: borderColors.slice(0, labels.length),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        ...defaultChartOptions,
+                        indexAxis: 'y',
+                        plugins: {
+                            ...defaultChartOptions.plugins,
+                            legend: { display: false }
+                        }
+                    }
+                });
+            })
+            .catch(err => console.error('Failed to load top countries:', err));
+    }
+
+    function loadAttackTypes() {
+        fetch('/api/stats/attack-types')
+            .then(r => r.json())
+            .then(data => {
+                const ctx = document.getElementById('attackTypesChart').getContext('2d');
+                const labels = data.map(d => d.reason);
+                const counts = data.map(d => d.count);
+                const colors = [
+                    chartColors.danger, chartColors.warning, chartColors.primary,
+                    chartColors.success, 'rgba(168, 85, 247, 0.6)', 'rgba(236, 72, 153, 0.6)',
+                    'rgba(20, 184, 166, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(99, 102, 241, 0.6)',
+                    'rgba(132, 204, 22, 0.6)'
+                ];
+                const borderColors = colors.map(c => c.replace('0.6', '1'));
+
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: counts,
+                            backgroundColor: colors.slice(0, labels.length),
+                            borderColor: borderColors.slice(0, labels.length),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: 'rgba(255,255,255,0.7)', boxWidth: 12, padding: 8 }
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(err => console.error('Failed to load attack types:', err));
+    }
+
+    function loadBanTimeline() {
+        fetch('/api/stats/ban-timeline')
+            .then(r => r.json())
+            .then(data => {
+                const ctx = document.getElementById('banTimelineChart').getContext('2d');
+                const labels = data.map(d => d.hour);
+                const counts = data.map(d => d.count);
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Bans Expiring',
+                            data: counts,
+                            backgroundColor: chartColors.warning,
+                            borderColor: chartColors.warningBorder,
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        ...defaultChartOptions,
+                        plugins: {
+                            ...defaultChartOptions.plugins,
+                            legend: { display: false }
+                        },
+                        scales: {
+                            ...defaultChartOptions.scales,
+                            y: {
+                                ...defaultChartOptions.scales.y,
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            })
+            .catch(err => console.error('Failed to load ban timeline:', err));
+    }
 </script>
 {/block}

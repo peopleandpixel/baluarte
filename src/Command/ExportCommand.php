@@ -19,7 +19,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  */
 class ExportCommand extends Command
 {
-    protected static $defaultName = 'export';
+    protected static ?string $defaultName = 'export';
 
     public function __construct(
         private readonly DatabaseHandler $dbHandler,
@@ -33,9 +33,10 @@ class ExportCommand extends Command
         $this
             ->setName('export')
             ->setDescription('Export detected threats and active bans.')
-            ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Export format (csv, json)', 'json')
+            ->addOption('format', 'f', InputOption::VALUE_REQUIRED, 'Export format (csv, json, stix)', 'json')
             ->addOption('type', 't', InputOption::VALUE_REQUIRED, 'Data type to export (threats, bans)', 'threats')
-            ->addOption('output', 'o', InputOption::VALUE_REQUIRED, 'Output file path (default is stdout)');
+            ->addOption('output', 'o', InputOption::VALUE_REQUIRED, 'Output file path (default is stdout)')
+            ->addOption('source', 's', InputOption::VALUE_REQUIRED, 'Source organization name for STIX export', 'Baluarte');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -44,9 +45,10 @@ class ExportCommand extends Command
         $format = $input->getOption('format');
         $type = $input->getOption('type');
         $outputPath = $input->getOption('output');
+        $source = $input->getOption('source');
 
-        if (!in_array($format, ['csv', 'json'])) {
-            $io->error("Invalid format: $format. Supported formats: csv, json.");
+        if (!in_array($format, ['csv', 'json', 'stix'])) {
+            $io->error("Invalid format: $format. Supported formats: csv, json, stix.");
             return Command::FAILURE;
         }
 
@@ -55,9 +57,13 @@ class ExportCommand extends Command
                 ? $this->dbHandler->getActiveBansDetailed() 
                 : $this->dbHandler->getAllDetectedIps();
 
-            $content = $format === 'json' 
-                ? $this->exportService->exportToJson($data) 
-                : $this->exportService->exportToCsv($data);
+            if ($format === 'stix') {
+                $content = $this->exportService->exportToStix($data, (string)$source);
+            } elseif ($format === 'json') {
+                $content = $this->exportService->exportToJson($data);
+            } else {
+                $content = $this->exportService->exportToCsv($data);
+            }
 
             if ($outputPath) {
                 file_put_contents($outputPath, $content);

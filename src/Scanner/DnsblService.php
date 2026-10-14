@@ -14,13 +14,14 @@ use Symfony\Contracts\Cache\ItemInterface;
  */
 class DnsblService implements DnsblServiceInterface
 {
+    /** @var list<string> */
     private array $dnsbls;
     private ?CacheInterface $cache;
 
     /**
      * DnsblService constructor.
-     * 
-     * @param array $dnsbls Array of DNSBL hosts (e.g., zen.spamhaus.org).
+     *
+     * @param list<string> $dnsbls Array of DNSBL hosts (e.g., zen.spamhaus.org).
      * @param CacheInterface|null $cache Cache instance.
      */
     public function __construct(array $dnsbls = [], ?CacheInterface $cache = null)
@@ -31,9 +32,9 @@ class DnsblService implements DnsblServiceInterface
 
     /**
      * Checks an IP address against configured DNSBLs.
-     * 
+     *
      * @param string $ip The IP address to check.
-     * @return array Array of DNSBLs where the IP is listed.
+     * @return list<string> Array of DNSBLs where the IP is listed.
      */
     public function checkIp(string $ip): array
     {
@@ -54,9 +55,9 @@ class DnsblService implements DnsblServiceInterface
 
     /**
      * Actually performs the DNSBL checks.
-     * 
+     *
      * @param string $ip The IP address to check.
-     * @return array
+     * @return list<string>
      */
     protected function doCheckIp(string $ip): array
     {
@@ -79,9 +80,9 @@ class DnsblService implements DnsblServiceInterface
 
     /**
      * Checks multiple IP addresses against configured DNSBLs.
-     * 
-     * @param array $ips Array of IP addresses.
-     * @return array Array of DNSBL results indexed by IP.
+     *
+     * @param list<string> $ips Array of IP addresses.
+     * @return array<string, list<string>> Array of DNSBL results indexed by IP.
      */
     public function checkIps(array $ips): array
     {

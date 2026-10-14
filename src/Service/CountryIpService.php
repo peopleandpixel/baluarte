@@ -35,9 +35,9 @@ class CountryIpService
 
     /**
      * Retrieves IP ranges for a given country code.
-     * 
+     *
      * @param string $countryCode ISO 3166-1 alpha-2 country code.
-     * @return array List of CIDR IP ranges.
+     * @return list<string> List of CIDR IP ranges.
      */
     public function getIpRanges(string $countryCode): array
     {
@@ -46,7 +46,8 @@ class CountryIpService
 
         // Cache for 24 hours
         if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < 86400)) {
-            return file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            $lines = file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            return $lines !== false ? $lines : [];
         }
 
         $url = "https://www.ipdeny.com/ipblocks/data/aggregated/$countryCode-aggregated.zone";
@@ -57,7 +58,8 @@ class CountryIpService
             $this->logger->error("Failed to download IP ranges for country: $countryCode");
             // Return cached version if exists, even if expired
             if (file_exists($cacheFile)) {
-                return file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                $lines = file($cacheFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                return $lines !== false ? $lines : [];
             }
             return [];
         }

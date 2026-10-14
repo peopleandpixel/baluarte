@@ -3,7 +3,6 @@ services:
     build: .
     container_name: baluarte
     restart: unless-stopped
-    network_mode: host
     cap_add:
       - NET_ADMIN
       - NET_RAW
@@ -11,8 +10,52 @@ services:
       - "8080:8080"
     volumes:
       - ./config/config.yaml:/app/config/config.yaml:ro
-      - ./baluarte.sqlite:/app/baluarte.sqlite
-      - ./logs/baluarte.log:/app/logs/baluarte.log
+      - baluarte-data:/app/baluarte.sqlite
+      - baluarte-logs:/app/logs
       - /var/log:/var/log:ro
     environment:
       - TZ=UTC
+    # Uncomment one of the following to use PostgreSQL or MySQL instead of SQLite:
+    # depends_on:
+    #   - postgresql
+    # Or:
+    #   - mysql
+
+  # Optional: PostgreSQL database (uncomment to use instead of SQLite)
+  # postgresql:
+  #   image: postgres:17-alpine
+  #   container_name: baluarte-postgresql
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: baluarte
+  #     POSTGRES_USER: baluarte
+  #     POSTGRES_PASSWORD: baluarte
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - baluarte-pgdata:/var/lib/postgresql/data
+
+  # Optional: MySQL/MariaDB database (uncomment to use instead of SQLite)
+  # mysql:
+  #   image: mariadb:11-jammy
+  #   container_name: baluarte-mysql
+  #   restart: unless-stopped
+  #   environment:
+  #     MYSQL_DATABASE: baluarte
+  #     MYSQL_USER: baluarte
+  #     MYSQL_PASSWORD: baluarte
+  #     MYSQL_ROOT_PASSWORD: root
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - baluarte-mysqldata:/var/lib/mysql
+
+volumes:
+  baluarte-data:
+    driver: local
+  baluarte-logs:
+    driver: local
+  baluarte-pgdata:
+    driver: local
+  baluarte-mysqldata:
+    driver: local

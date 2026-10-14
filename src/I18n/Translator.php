@@ -5,6 +5,7 @@ namespace Baluarte\I18n;
 class Translator
 {
     private string $locale;
+    /** @var array<string, array<string, string>> */
     private array $messages = [];
     private string $defaultLocale;
 
@@ -44,9 +45,18 @@ class Translator
         $this->messages[$this->defaultLocale] = $load($this->defaultLocale);
         if ($this->locale !== $this->defaultLocale) {
             $this->messages[$this->locale] = $load($this->locale);
+            // also load language-only fallback (e.g., "de" from "de_DE")
+            $langOnly = strtok($this->locale, '_');
+            if ($langOnly && $langOnly !== $this->locale && $langOnly !== $this->defaultLocale) {
+                $this->messages[$langOnly] = $load($langOnly);
+            }
         }
     }
 
+    /**
+     * @param string|int $message
+     * @param mixed ...$parameters
+     */
     public function translate($message, ...$parameters): string
     {
         $text = $this->lookup((string)$message);

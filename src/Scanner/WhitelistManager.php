@@ -11,14 +11,16 @@ namespace Baluarte\Scanner;
  */
 class WhitelistManager
 {
+    /** @var list<string> */
     private array $whitelistedIps;
+    /** @var list<string> */
     private array $whitelistedCountries;
 
     /**
      * WhitelistManager constructor.
-     * 
-     * @param array $whitelistedIps Array of whitelisted IP addresses.
-     * @param array $whitelistedCountries Array of whitelisted country codes (ISO 3166-1 alpha-2).
+     *
+     * @param list<string> $whitelistedIps Array of whitelisted IP addresses.
+     * @param list<string> $whitelistedCountries Array of whitelisted country codes (ISO 3166-1 alpha-2).
      */
     public function __construct(array $whitelistedIps = [], array $whitelistedCountries = [])
     {
@@ -91,10 +93,13 @@ class WhitelistManager
                 }
 
                 $netmask = (int)$netmask;
-                
+
                 $mask = str_repeat(chr(0xFF), $netmask >> 3);
                 if ($netmask % 8 !== 0) {
-                    $mask .= chr(0xFF << (8 - ($netmask % 8)));
+                    $shift = 8 - ($netmask % 8);
+                    /** @var int<0, 255> $codepoint */
+                    $codepoint = 0xFF << $shift;
+                    $mask .= chr($codepoint);
                 }
                 $mask = str_pad($mask, 16, chr(0x00));
                 

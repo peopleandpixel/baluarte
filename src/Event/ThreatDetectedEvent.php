@@ -20,7 +20,7 @@ class ThreatDetectedEvent extends Event
      * 
      * @param string $ip The detected IP address.
      * @param string $reason The reason for detection.
-     * @param array $metadata Additional information about the detection.
+     * @param array<string, mixed> $metadata Additional information about the detection.
      */
     public function __construct(
         private readonly string $ip,
@@ -46,7 +46,7 @@ class ThreatDetectedEvent extends Event
     }
 
     /**
-     * @return array Additional information about the detection.
+     * @return array<string, mixed> Additional information about the detection.
      */
     public function getMetadata(): array
     {

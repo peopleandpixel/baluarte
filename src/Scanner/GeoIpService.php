@@ -44,9 +44,9 @@ class GeoIpService implements GeoIpServiceInterface
 
     /**
      * Performs a GeoIP lookup for a given IP address.
-     * 
+     *
      * @param string $ip The IP address to look up.
-     * @return array Array containing 'country', 'city', and 'isp' (if available).
+     * @return array<string, mixed> Array containing 'country', 'city', and 'isp' (if available).
      */
     public function lookup(string $ip): array
     {
@@ -66,14 +66,30 @@ class GeoIpService implements GeoIpServiceInterface
     }
 
     /**
+     * Performs batch GeoIP lookups for multiple IP addresses.
+     *
+     * @param list<string> $ips Array of IP addresses.
+     * @return array<string, array<string, mixed>> Array of GeoIP data indexed by IP address.
+     */
+    public function lookupIps(array $ips): array
+    {
+        $results = [];
+        foreach ($ips as $ip) {
+            $results[$ip] = $this->lookup($ip);
+        }
+        return $results;
+    }
+
+    /**
      * Actually performs the GeoIP lookup.
-     * 
+     *
      * @param string $ip The IP address to look up.
-     * @return array
+     * @return array<string, mixed>
      */
     private function doLookup(string $ip): array
     {
         try {
+            // @phpstan-ignore method.nonObject (reader is checked in lookup() before calling doLookup)
             $record = $this->reader->city($ip);
             return [
                 'country' => $record->country->name,

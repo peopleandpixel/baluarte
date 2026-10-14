@@ -3,6 +3,7 @@
 namespace Baluarte\Database;
 
 use Baluarte\Database\Migration\Version20260204000000;
+use Baluarte\Database\Migration\Version20261014000000;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Exception;
@@ -46,24 +47,82 @@ class DatabaseHandler
     /**
      * DatabaseHandler constructor.
      * 
-     * @param string $dbPath The path to the SQLite database file.
+     * @param array<string, mixed>|string $dbConfig Database configuration array with driver, host, port, dbname, user, password,
+     *   or a string path for backward compatibility (defaults to SQLite).
      * @param LoggerInterface|null $logger Logger instance for recording database events and errors.
      * @param EventDispatcherInterface|null $eventDispatcher Event dispatcher instance.
      */
-    public function __construct(string $dbPath = 'baluarte.sqlite', ?LoggerInterface $logger = null, ?EventDispatcherInterface $eventDispatcher = null)
+    public function __construct(array|string $dbConfig = 'baluarte.sqlite', ?LoggerInterface $logger = null, ?EventDispatcherInterface $eventDispatcher = null)
     {
         $this->logger = $logger ?? new NullLogger();
         $this->eventDispatcher = $eventDispatcher;
         try {
-            $connectionParams = [
-                'driver' => 'pdo_sqlite',
-                'path' => $dbPath,
-            ];
+            $connectionParams = $this->buildConnectionParams($dbConfig);
             $this->connection = DriverManager::getConnection($connectionParams);
+            
+            // SQLite-specific optimizations
+            if (($connectionParams['driver'] ?? 'pdo_sqlite') === 'pdo_sqlite') {
+                $this->connection->executeStatement('PRAGMA journal_mode=WAL');
+            }
+            
             $this->initializeSchema();
         } catch (Exception $e) {
             $this->logger->critical("Could not connect to database: " . $e->getMessage());
             throw new RuntimeException("Could not connect to database: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Builds Doctrine DBAL connection parameters from the database configuration.
+     * 
+     * @param array<string, mixed>|string $dbConfig Database configuration or SQLite path string.
+     * @return array<string, mixed> Doctrine DBAL connection parameters.
+     */
+    private function buildConnectionParams(array|string $dbConfig): array
+    {
+        // Backward compatibility: string means SQLite path
+        if (is_string($dbConfig)) {
+            return [
+                'driver' => 'pdo_sqlite',
+                'path' => $dbConfig,
+            ];
+        }
+
+        $driver = $dbConfig['driver'] ?? 'sqlite';
+
+        switch ($driver) {
+            case 'postgresql':
+            case 'postgres':
+                return [
+                    'driver' => 'pdo_pgsql',
+                    'host' => $dbConfig['host'] ?? '127.0.0.1',
+                    'port' => $dbConfig['port'] ?? 5432,
+                    'dbname' => $dbConfig['dbname'] ?? 'baluarte',
+                    'user' => $dbConfig['user'] ?? 'baluarte',
+                    'password' => $dbConfig['password'] ?? '',
+                    'options' => $dbConfig['options'] ?? [],
+                ];
+
+            case 'mysql':
+            case 'mariadb':
+                return [
+                    'driver' => 'pdo_mysql',
+                    'host' => $dbConfig['host'] ?? '127.0.0.1',
+                    'port' => $dbConfig['port'] ?? 3306,
+                    'dbname' => $dbConfig['dbname'] ?? 'baluarte',
+                    'user' => $dbConfig['user'] ?? 'baluarte',
+                    'password' => $dbConfig['password'] ?? '',
+                    'options' => $dbConfig['options'] ?? [
+                        \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
+                    ],
+                ];
+
+            case 'sqlite':
+            default:
+                return [
+                    'driver' => 'pdo_sqlite',
+                    'path' => $dbConfig['path'] ?? 'baluarte.sqlite',
+                ];
         }
     }
 
@@ -77,6 +136,7 @@ class DatabaseHandler
         $migrationManager = new MigrationManager($this->connection, $this->logger);
         $migrationManager->migrate([
             new Version20260204000000(),
+            new Version20261014000000(),
         ]);
     }
 
@@ -87,7 +147,7 @@ class DatabaseHandler
      * @param string $ip The IP address.
      * @param string $reason The reason for detection.
      * @param string $source The log source.
-     * @param array $geoData Optional GeoIP information.
+     * @param array<string, mixed> $geoData Optional GeoIP information.
      * @return bool True on success, false otherwise (e.g. duplicate).
      */
     public function saveIp(string $ip, string $reason, string $source, array $geoData = []): bool
@@ -112,8 +172,8 @@ class DatabaseHandler
 
     /**
      * Saves multiple detected IPs to the database in a single transaction.
-     * 
-     * @param array $results Array of results, each containing 'ip', 'reason', 'source', and 'geo'.
+     *
+     * @param list<array{ip: string, reason: string, log_source?: string, source?: string, geo: array<string, mixed>, reputation?: array<string, mixed>, dnsbl?: list<string>, line?: string, offset?: int}> $results Array of results.
      * @return int Number of successfully saved entries.
      * @throws Exception If database transaction fails.
      */
@@ -131,7 +191,7 @@ class DatabaseHandler
                     $this->connection->insert('malicious_ips', [
                         'ip_address' => $result['ip'],
                         'reason' => $result['reason'],
-                        'log_source' => $result['source'],
+                        'log_source' => $result['log_source'] ?? $result['source'] ?? null,
                         'country' => $result['geo']['country'] ?? null,
                         'city' => $result['geo']['city'] ?? null,
                         'isp' => $result['geo']['isp'] ?? null,
@@ -159,7 +219,7 @@ class DatabaseHandler
      * Retrieves all detected IPs from the database that are NOT currently banned, ordered by detection time (newest first).
      *
      * @param int|null $limit Optional limit for the number of results.
-     * @return array Array of detected IPs with their details.
+     * @return list<array<string, mixed>> Array of detected IPs with their details.
      * @throws Exception
      */
     public function getAllDetectedIps(?int $limit = null): array
@@ -208,7 +268,7 @@ class DatabaseHandler
             ->where('ip_address = :ip')
             ->andWhere('detected_at >= :since')
             ->setParameter('ip', $ip)
-            ->setParameter('since', date('Y-m-d H:i:s', strtotime("-$minutes minutes")));
+            ->setParameter('since', date('Y-m-d H:i:s', strtotime("-$minutes minutes") ?: 0));
 
         return (int)$queryBuilder->executeQuery()->fetchOne();
     }
@@ -223,7 +283,7 @@ class DatabaseHandler
      */
     public function addBan(string $ip, int $durationMinutes, string $type = 'ip'): bool
     {
-        $expiresAt = date('Y-m-d H:i:s', strtotime(($durationMinutes >= 0 ? '+' : '') . $durationMinutes . ' minutes'));
+        $expiresAt = date('Y-m-d H:i:s', strtotime(($durationMinutes >= 0 ? '+' : '') . $durationMinutes . ' minutes') ?: 0);
         
         try {
             $exists = $this->connection->fetchOne("SELECT 1 FROM active_bans WHERE ip_address = ?", [$ip]);
@@ -259,7 +319,7 @@ class DatabaseHandler
     /**
      * Retrieves all active IP bans.
      *
-     * @return array List of banned IP addresses.
+     * @return list<string> List of banned IP addresses.
      * @throws Exception
      */
     public function getActiveBans(): array
@@ -280,7 +340,7 @@ class DatabaseHandler
      * Retrieves all active bans of a specific type.
      *
      * @param string $type The type of ban.
-     * @return array List of banned identifiers (IPs, countries, etc.).
+     * @return list<string> List of banned identifiers (IPs, countries, etc.).
      * @throws Exception
      */
     public function getActiveBansByType(string $type): array
@@ -301,7 +361,7 @@ class DatabaseHandler
      * Retrieves detailed information for all active bans.
      *
      * @param int|null $limit Optional limit.
-     * @return array List of active bans with full details.
+     * @return list<array<string, mixed>> List of active bans with full details.
      * @throws Exception
      */
     public function getActiveBansDetailed(?int $limit = null): array
@@ -335,7 +395,7 @@ class DatabaseHandler
     /**
      * Retrieves all expired bans.
      *
-     * @return array List of identifiers for which the ban has expired.
+     * @return list<string> List of identifiers for which the ban has expired.
      * @throws Exception
      */
     public function getExpiredBans(): array
@@ -387,20 +447,20 @@ class DatabaseHandler
         $queryBuilder
             ->delete('malicious_ips')
             ->where('detected_at < :date')
-            ->setParameter('date', date('Y-m-d H:i:s', strtotime("-$days days")));
+            ->setParameter('date', date('Y-m-d H:i:s', strtotime("-$days days") ?: 0));
 
         $count = $queryBuilder->executeStatement();
         if ($count > 0) {
             $this->logger->info("Cleaned up $count old malicious IP entries.");
         }
-        return $count;
+        return (int)$count;
     }
 
     /**
      * Checks if an IP address is currently banned.
      * 
      * @param string $ip
-     * @return array|null Ban details or null if not banned.
+     * @return array<string, mixed>|null Ban details or null if not banned.
      * @throws Exception
      */
     public function getBanDetails(string $ip): ?array
@@ -422,7 +482,7 @@ class DatabaseHandler
      * Retrieves all detection history for a specific IP.
      * 
      * @param string $ip
-     * @return array
+     * @return list<array<string, mixed>>
      * @throws Exception
      */
     public function getIpHistory(string $ip): array
@@ -479,5 +539,163 @@ class DatabaseHandler
         } catch (Exception $e) {
             return false;
         }
+    }
+
+    /**
+     * Get threat counts grouped by hour for the last 24 hours.
+     *
+     * @return list<array<string, mixed>> Array of ['hour' => string, 'count' => int].
+     * @throws Exception
+     */
+    public function getThreatsByHour(): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT strftime('%Y-%m-%d %H:00', detected_at) as hour, COUNT(*) as count 
+             FROM malicious_ips 
+             WHERE detected_at >= datetime('now', '-24 hours')
+             GROUP BY hour 
+             ORDER BY hour"
+        );
+        // Fill in missing hours with zero
+        $result = [];
+        $hourMap = [];
+        foreach ($rows as $row) {
+            $hourMap[$row['hour']] = (int)$row['count'];
+        }
+        for ($i = 23; $i >= 0; $i--) {
+            $hour = date('Y-m-d H:00', strtotime("-{$i} hours"));
+            $result[] = [
+                'hour' => $hour,
+                'count' => $hourMap[$hour] ?? 0,
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Get threat counts grouped by day for the last 30 days.
+     *
+     * @return list<array<string, mixed>> Array of ['day' => string, 'count' => int].
+     * @throws Exception
+     */
+    public function getThreatsByDay(): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT strftime('%Y-%m-%d', detected_at) as day, COUNT(*) as count 
+             FROM malicious_ips 
+             WHERE detected_at >= datetime('now', '-30 days')
+             GROUP BY day 
+             ORDER BY day"
+        );
+        $result = [];
+        $dayMap = [];
+        foreach ($rows as $row) {
+            $dayMap[$row['day']] = (int)$row['count'];
+        }
+        for ($i = 29; $i >= 0; $i--) {
+            $day = date('Y-m-d', strtotime("-{$i} days"));
+            $result[] = [
+                'day' => $day,
+                'count' => $dayMap[$day] ?? 0,
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Get threat counts grouped by week for the last 12 weeks.
+     *
+     * @return list<array<string, mixed>> Array of ['week' => string, 'count' => int].
+     * @throws Exception
+     */
+    public function getThreatsByWeek(): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT strftime('%Y-W%W', detected_at) as week, COUNT(*) as count 
+             FROM malicious_ips 
+             WHERE detected_at >= datetime('now', '-12 weeks')
+             GROUP BY week 
+             ORDER BY week"
+        );
+        $result = [];
+        $weekMap = [];
+        foreach ($rows as $row) {
+            $weekMap[$row['week']] = (int)$row['count'];
+        }
+        for ($i = 11; $i >= 0; $i--) {
+            $week = date('Y-WW', strtotime("-{$i} weeks"));
+            $result[] = [
+                'week' => $week,
+                'count' => $weekMap[$week] ?? 0,
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Get top attacking countries.
+     *
+     * @param int $limit Number of countries to return.
+     * @return list<array<string, mixed>> Array of ['country' => string, 'count' => int].
+     * @throws Exception
+     */
+    public function getTopCountries(int $limit = 10): array
+    {
+        return $this->connection->fetchAllAssociative(
+            "SELECT country, COUNT(*) as count 
+             FROM malicious_ips 
+             WHERE country IS NOT NULL AND country != 'Unknown'
+             GROUP BY country 
+             ORDER BY count DESC 
+             LIMIT ?",
+            [$limit]
+        );
+    }
+
+    /**
+     * Get attack type distribution (by reason).
+     *
+     * @return list<array<string, mixed>> Array of ['reason' => string, 'count' => int].
+     * @throws Exception
+     */
+    public function getAttackTypes(): array
+    {
+        return $this->connection->fetchAllAssociative(
+            "SELECT reason, COUNT(*) as count 
+             FROM malicious_ips 
+             GROUP BY reason 
+             ORDER BY count DESC"
+        );
+    }
+
+    /**
+     * Get ban expiration timeline for the next 24 hours.
+     *
+     * @return list<array<string, mixed>> Array of ['hour' => string, 'count' => int].
+     * @throws Exception
+     */
+    public function getBanTimeline(): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT strftime('%Y-%m-%d %H:00', expires_at) as hour, COUNT(*) as count 
+             FROM active_bans 
+             WHERE expires_at > datetime('now') 
+             AND expires_at <= datetime('now', '+24 hours')
+             GROUP BY hour 
+             ORDER BY hour"
+        );
+        $result = [];
+        $hourMap = [];
+        foreach ($rows as $row) {
+            $hourMap[$row['hour']] = (int)$row['count'];
+        }
+        for ($i = 0; $i < 24; $i++) {
+            $hour = date('Y-m-d H:00', strtotime("+{$i} hours"));
+            $result[] = [
+                'hour' => $hour,
+                'count' => $hourMap[$hour] ?? 0,
+            ];
+        }
+        return $result;
     }
 }

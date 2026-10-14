@@ -20,7 +20,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  */
 class MqttListenCommand extends Command
 {
-    protected static $defaultName = 'mqtt:listen';
+    protected static ?string $defaultName = 'mqtt:listen';
 
     /**
      * MqttListenCommand constructor.
@@ -29,7 +29,7 @@ class MqttListenCommand extends Command
      * @param FirewallManager $firewallManager The firewall manager.
      * @param DatabaseHandler $db The database handler.
      * @param LoggerInterface $logger The logger instance.
-     * @param array $config MQTT configuration.
+     * @param array<string, mixed> $config MQTT configuration.
      */
     public function __construct(
         private readonly MqttService $mqttService,

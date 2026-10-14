@@ -53,9 +53,9 @@ class FirewallManager
 
     /**
      * Blocks all IP ranges associated with a country using all configured drivers.
-     * 
+     *
      * @param string $countryCode The ISO 3166-1 alpha-2 country code.
-     * @param CountryIpService $countryIpService Service to resolve country to ranges.
+     * @param \Baluarte\Service\CountryIpService $countryIpService Service to resolve country to ranges.
      * @return bool True if at least one driver successfully blocked the country, false otherwise.
      */
     public function blockCountry(string $countryCode, \Baluarte\Service\CountryIpService $countryIpService): bool
@@ -109,7 +109,7 @@ class FirewallManager
 
     /**
      * Unblocks a country using all configured drivers.
-     * 
+     *
      * @param string $countryCode The ISO 3166-1 alpha-2 country code.
      * @param \Baluarte\Service\CountryIpService $countryIpService Service to resolve country to ranges.
      * @return bool True if at least one driver successfully unblocked the country, false otherwise.
@@ -143,11 +143,11 @@ class FirewallManager
 
     /**
      * Returns the names of the active firewall drivers.
-     * 
-     * @return array The driver names.
+     *
+     * @return list<string> The driver names.
      */
     public function getDriverNames(): array
     {
-        return array_map(fn($driver) => $driver->getName(), $this->drivers);
+        return array_values(array_map(fn($driver) => $driver->getName(), $this->drivers));
     }
 }

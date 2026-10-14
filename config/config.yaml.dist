@@ -1,5 +1,14 @@
 database:
+  # Driver: 'sqlite' (default), 'postgresql', 'mysql'
+  driver: 'sqlite'
+  # SQLite options
   path: 'baluarte.sqlite'
+  # PostgreSQL/MySQL options (ignored when driver is 'sqlite')
+  host: '127.0.0.1'
+  port: 5432
+  dbname: 'baluarte'
+  user: 'baluarte'
+  password: ''
 
 cache:
   backend: 'filesystem' # 'filesystem' or 'redis'
@@ -37,6 +46,9 @@ whitelist:
 notifications:
   webhook:
     url: '' # Enter your webhook URL here
+    # Optional: custom JSON template for structured notifications
+    # Variables: {ip}, {country}, {city}, {isp}, {reason}, {count}, {timestamp}, {type}
+    # template: '{"ip":"{ip}","country":"{country}","reason":"{reason}","count":{count},"timestamp":"{timestamp}"}'
   mqtt:
     enabled: false
     host: 'localhost'

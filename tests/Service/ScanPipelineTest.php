@@ -14,6 +14,7 @@ use Baluarte\Scanner\WhitelistManager;
 use Baluarte\Service\Configuration;
 use Baluarte\Service\ScanService;
 use Baluarte\Service\Firewall\FirewallDriverInterface;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -22,6 +23,7 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface as ComponentEventDispatcher;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface as ContractsEventDispatcher;
 
+#[AllowMockObjectsWithoutExpectations]
 class ScanPipelineTest extends TestCase
 {
     private string $dbFile;

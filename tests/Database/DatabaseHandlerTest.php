@@ -2,8 +2,13 @@
 
 namespace Baluarte\Tests\Database;
 
-use PHPUnit\Framework\TestCase;
 use Baluarte\Database\DatabaseHandler;
+use Baluarte\Event\BanAddedEvent;
+use Baluarte\Event\BanRemovedEvent;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 class DatabaseHandlerTest extends TestCase
 {
@@ -190,5 +195,210 @@ class DatabaseHandlerTest extends TestCase
         $ips = $this->db->getAllDetectedIps();
         $this->assertCount(1, $ips);
         $this->assertEquals('2.2.2.2', $ips[0]['ip']);
+    }
+
+    public function testGetDetectedIpsCount(): void
+    {
+        $this->assertEquals(0, $this->db->getDetectedIpsCount());
+        $this->db->saveIp('1.1.1.1', 'Test', 'test.log');
+        $this->db->saveIp('2.2.2.2', 'Test', 'test.log');
+        $this->assertEquals(2, $this->db->getDetectedIpsCount());
+    }
+
+    public function testGetActiveBansCount(): void
+    {
+        $this->assertEquals(0, $this->db->getActiveBansCount());
+        $this->db->addBan('1.1.1.1', 60);
+        $this->assertEquals(1, $this->db->getActiveBansCount());
+        $this->db->addBan('2.2.2.2', -1); // expired
+        $this->assertEquals(1, $this->db->getActiveBansCount());
+    }
+
+    public function testGetActiveBansByType(): void
+    {
+        $this->db->addBan('1.1.1.1', 60, 'ip');
+        $this->db->addBan('CN', 60, 'country');
+        $this->db->addBan('192.168.1.0/24', 60, 'range');
+
+        $ipBans = $this->db->getActiveBansByType('ip');
+        $this->assertContains('1.1.1.1', $ipBans);
+        $this->assertNotContains('CN', $ipBans);
+
+        $countryBans = $this->db->getActiveBansByType('country');
+        $this->assertContains('CN', $countryBans);
+    }
+
+    public function testGetBanDetails(): void
+    {
+        $this->assertNull($this->db->getBanDetails('1.1.1.1'));
+
+        $this->db->addBan('1.1.1.1', 60, 'ip');
+        $details = $this->db->getBanDetails('1.1.1.1');
+
+        $this->assertNotNull($details);
+        $this->assertEquals('1.1.1.1', $details['target']);
+        $this->assertEquals('ip', $details['type']);
+        $this->assertArrayHasKey('banned_at', $details);
+        $this->assertArrayHasKey('expires_at', $details);
+    }
+
+    public function testGetBanDetailsReturnsNullForExpiredBan(): void
+    {
+        $this->db->addBan('1.1.1.1', -1); // expired
+        $this->assertNull($this->db->getBanDetails('1.1.1.1'));
+    }
+
+    public function testGetIpHistory(): void
+    {
+        $this->db->saveIp('1.1.1.1', 'Reason 1', 'log1');
+        $this->db->saveIp('1.1.1.1', 'Reason 2', 'log2');
+        $this->db->saveIp('2.2.2.2', 'Reason 3', 'log1');
+
+        $history = $this->db->getIpHistory('1.1.1.1');
+        $this->assertCount(2, $history);
+        $this->assertEquals('1.1.1.1', $history[0]['ip']);
+        $this->assertEquals('1.1.1.1', $history[1]['ip']);
+
+        $history2 = $this->db->getIpHistory('2.2.2.2');
+        $this->assertCount(1, $history2);
+    }
+
+    public function testGetAllDetectedIpsWithLimit(): void
+    {
+        $this->db->saveIp('1.1.1.1', 'Test', 'log1');
+        $this->db->saveIp('2.2.2.2', 'Test', 'log1');
+        $this->db->saveIp('3.3.3.3', 'Test', 'log1');
+
+        $ips = $this->db->getAllDetectedIps(2);
+        $this->assertCount(2, $ips);
+    }
+
+    public function testSaveIpsEmptyArray(): void
+    {
+        $count = $this->db->saveIps([]);
+        $this->assertEquals(0, $count);
+    }
+
+    public function testGetConnection(): void
+    {
+        $connection = $this->db->getConnection();
+        $this->assertInstanceOf(\Doctrine\DBAL\Connection::class, $connection);
+    }
+
+    public function testGetLogger(): void
+    {
+        $logger = $this->db->getLogger();
+        $this->assertInstanceOf(LoggerInterface::class, $logger);
+    }
+
+    public function testAddBanUpdatesExistingBan(): void
+    {
+        $this->db->addBan('1.1.1.1', 30);
+        $details1 = $this->db->getBanDetails('1.1.1.1');
+        
+        // Update with longer duration
+        $this->db->addBan('1.1.1.1', 120);
+        $details2 = $this->db->getBanDetails('1.1.1.1');
+
+        $this->assertNotNull($details1);
+        $this->assertNotNull($details2);
+        // The expires_at should be different (updated)
+        $this->assertNotEquals($details1['expires_at'], $details2['expires_at']);
+    }
+
+    public function testRemoveBan(): void
+    {
+        $this->db->addBan('1.1.1.1', 60);
+        $this->assertTrue($this->db->removeBan('1.1.1.1'));
+        $this->assertNull($this->db->getBanDetails('1.1.1.1'));
+    }
+
+    public function testRemoveNonExistentBan(): void
+    {
+        // Should return true even if ban doesn't exist (DELETE affects 0 rows)
+        $result = $this->db->removeBan('9.9.9.9');
+        $this->assertTrue($result);
+    }
+
+    public function testEventDispatcherBanAdded(): void
+    {
+        $dispatcher = new EventDispatcher();
+        $banAddedCalled = false;
+        $dispatcher->addListener(BanAddedEvent::NAME, function (BanAddedEvent $event) use (&$banAddedCalled) {
+            $banAddedCalled = true;
+            $this->assertEquals('1.1.1.1', $event->getTarget());
+            $this->assertEquals(60, $event->getDuration());
+        });
+
+        $db = new DatabaseHandler($this->dbPath, null, $dispatcher);
+        $db->addBan('1.1.1.1', 60);
+        $this->assertTrue($banAddedCalled);
+    }
+
+    public function testEventDispatcherBanRemoved(): void
+    {
+        $dispatcher = new EventDispatcher();
+        $banRemovedCalled = false;
+        $dispatcher->addListener(BanRemovedEvent::NAME, function (BanRemovedEvent $event) use (&$banRemovedCalled) {
+            $banRemovedCalled = true;
+            $this->assertEquals('1.1.1.1', $event->getTarget());
+        });
+
+        $db = new DatabaseHandler($this->dbPath, null, $dispatcher);
+        $db->addBan('1.1.1.1', 60);
+        $db->removeBan('1.1.1.1');
+        $this->assertTrue($banRemovedCalled);
+    }
+
+    public function testSettingsUpdate(): void
+    {
+        $this->assertTrue($this->db->setSetting('key1', 'value1'));
+        $this->assertEquals('value1', $this->db->getSetting('key1'));
+        
+        $this->assertTrue($this->db->setSetting('key1', 'updated'));
+        $this->assertEquals('updated', $this->db->getSetting('key1'));
+    }
+
+    public function testGetExpiredBans(): void
+    {
+        $this->db->addBan('1.1.1.1', 60); // active
+        $this->db->addBan('2.2.2.2', -1); // expired
+        $this->db->addBan('3.3.3.3', -1); // expired
+
+        $expired = $this->db->getExpiredBans();
+        $this->assertContains('2.2.2.2', $expired);
+        $this->assertContains('3.3.3.3', $expired);
+        $this->assertNotContains('1.1.1.1', $expired);
+    }
+
+    public function testActiveBansDetailedWithLimit(): void
+    {
+        $this->db->addBan('1.1.1.1', 60);
+        $this->db->addBan('2.2.2.2', 60);
+        $this->db->addBan('3.3.3.3', 60);
+
+        $detailed = $this->db->getActiveBansDetailed(2);
+        $this->assertCount(2, $detailed);
+    }
+
+    public function testSaveIpWithoutGeoData(): void
+    {
+        $this->assertTrue($this->db->saveIp('1.1.1.1', 'Test', 'test.log'));
+        $ips = $this->db->getAllDetectedIps();
+        $this->assertCount(1, $ips);
+        $this->assertNull($ips[0]['country']);
+        $this->assertNull($ips[0]['city']);
+        $this->assertNull($ips[0]['isp']);
+    }
+
+    public function testGetAttemptCountTimeWindow(): void
+    {
+        $this->db->saveIp('1.1.1.1', 'Test', 'test.log');
+        
+        // Should find within 60 minutes
+        $this->assertEquals(1, $this->db->getAttemptCount('1.1.1.1', 60));
+        
+        // Non-existent IP should return 0
+        $this->assertEquals(0, $this->db->getAttemptCount('9.9.9.9', 60));
     }
 }

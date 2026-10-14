@@ -17,13 +17,14 @@ use Psr\Log\LoggerInterface;
 class MqttService
 {
     private ?MqttClient $client = null;
+    /** @var array<string, mixed> */
     private array $config;
     private LoggerInterface $logger;
 
     /**
      * MqttService constructor.
-     * 
-     * @param array $config MQTT configuration.
+     *
+     * @param array<string, mixed> $config MQTT configuration.
      * @param LoggerInterface $logger Logger instance.
      */
     public function __construct(array $config, LoggerInterface $logger)
@@ -57,6 +58,7 @@ class MqttService
             $settings = (new ConnectionSettings())
                 ->setUsername($this->config['username'] ?? null)
                 ->setPassword($this->config['password'] ?? null)
+                ->setConnectTimeout(intval($this->config['connection_timeout'] ?? 5))
                 ->setKeepAliveInterval(60)
                 ->setLastWillTopic(($this->config['topic_prefix'] ?? 'baluarte') . '/status')
                 ->setLastWillMessage('offline')
@@ -88,6 +90,7 @@ class MqttService
 
         try {
             $fullTopic = ($this->config['topic_prefix'] ?? 'baluarte') . '/' . ltrim($topic, '/');
+            // @phpstan-ignore method.nonObject (connect() ensures client is non-null)
             $this->client->publish($fullTopic, $message, 0, $retain);
             return true;
         } catch (MqttClientException $e) {
@@ -111,6 +114,7 @@ class MqttService
 
         try {
             $fullTopic = ($this->config['topic_prefix'] ?? 'baluarte') . '/' . ltrim($topic, '/');
+            // @phpstan-ignore method.nonObject (connect() ensures client is non-null)
             $this->client->subscribe($fullTopic, $callback);
             return true;
         } catch (MqttClientException $e) {

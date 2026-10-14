@@ -16,67 +16,74 @@ use Psr\Log\NullLogger;
  */
 class LogScanner
 {
+    /**
+     * Regex pattern that matches both IPv4 and IPv6 addresses.
+     */
+    private const IP_PATTERN = '\d+\.\d+\.\d+\.\d+';
+
+    /** @var array<string, array{regex: string, reason: string, enabled?: bool, multiline?: bool, start_regex?: string, format?: string, field?: string}> */
     private array $patterns;
     private LoggerInterface $logger;
 
     /**
      * LogScanner constructor.
-     * 
-     * @param array $customPatterns Optional custom patterns to override defaults.
+     *
+     * @param array<string, array{regex: string, reason: string, enabled?: bool, multiline?: bool, start_regex?: string, format?: string, field?: string}> $customPatterns Optional custom patterns to override defaults.
      * @param LoggerInterface|null $logger Logger instance.
      */
     public function __construct(array $customPatterns = [], ?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?? new NullLogger();
         if (empty($customPatterns)) {
+            $ip = self::IP_PATTERN;
             $this->patterns = [
                 'ssh_failed_login' => [
-                    'regex' => '/Failed password for (?:invalid user )?\S+ from (\d+\.\d+\.\d+\.\d+) port \d+ ssh2/',
+                    'regex' => '/Failed password for (?:invalid user )?\S+ from (' . $ip . ') port \d+ ssh2/',
                     'reason' => 'SSH failed login attempt',
                     'enabled' => true
                 ],
                 'ssh_invalid_user' => [
-                    'regex' => '/Invalid user \S+ from (\d+\.\d+\.\d+\.\d+) port \d+/',
+                    'regex' => '/Invalid user \S+ from (' . $ip . ') port \d+/',
                     'reason' => 'SSH invalid user attempt',
                     'enabled' => true
                 ],
                 'nginx_404_probing' => [
-                    'regex' => '/(\d+\.\d+\.\d+\.\d+) .* "GET .*(?:\.php|\.env|\.git|\.config|wp-admin|admin).* HTTP\/.*" 404/i',
+                    'regex' => '/(' . $ip . ') .* "GET .*(?:\.php|\.env|\.git|\.config|wp-admin|admin).* HTTP\/.*" 404/i',
                     'reason' => 'Vulnerability probing (404)',
                     'enabled' => true
                 ],
                 'apache_access_sqli' => [
-                    'regex' => '/(\d+\.\d+\.\d+\.\d+).*"(?:GET|POST|HEAD).* (?:UNION|SELECT|INSERT|UPDATE|DELETE|DROP|--|#)/i',
+                    'regex' => '/(' . $ip . ').*"(?:GET|POST|HEAD).* (?:UNION|SELECT|INSERT|UPDATE|DELETE|DROP|--|#)/i',
                     'reason' => 'SQL injection attempt',
                     'enabled' => true
                 ],
                 'apache_access_path_traversal' => [
-                    'regex' => '/^(\d+\.\d+\.\d+\.\d+).*"(?:GET|POST|HEAD).*\.\.\//i',
+                    'regex' => '/^(' . $ip . ').*"(?:GET|POST|HEAD).*\.\.\//i',
                     'reason' => 'Path traversal attempt',
                     'enabled' => true
                 ],
                 'auth_log_brute_force' => [
-                    'regex' => '/(\d+\.\d+\.\d+\.\d+) .*: Failed password for/i',
+                    'regex' => '/(' . $ip . ') .*: Failed password for/i',
                     'reason' => 'Brute force attempt',
                     'enabled' => true
                 ],
                 'imap_failed_login' => [
-                    'regex' => '/imap-login: Disconnected \(auth failed, \d+ attempts in \d+ secs\): user=<[^>]*>, method=\S+, rip=(\d+\.\d+\.\d+\.\d+), lip=\S+(?:, TLS(?:=\S+)?, session=<\S+>)?/',
+                    'regex' => '/imap-login: Disconnected \(auth failed, \d+ attempts in \d+ secs\): user=<[^>]*>, method=\S+, rip=(' . $ip . '), lip=\S+(?:, TLS(?:=\S+)?, session=<\S+>)?/',
                     'reason' => 'IMAP failed login',
                     'enabled' => true
                 ],
                 'dovecot_auth_fail' => [
-                    'regex' => '/auth-worker\(.*\): (?:pam|passwd-file)\(.*,(\d+\.\d+\.\d+\.\d+)\): Password mismatch/i',
+                    'regex' => '/auth-worker\(.*\): (?:pam|passwd-file)\(.*,' . '(' . $ip . ')\): Password mismatch/i',
                     'reason' => 'Dovecot authentication failure',
                     'enabled' => true
                 ],
                 'smtp_failed_login' => [
-                    'regex' => '/lost connection after AUTH from \S+\[(\d+\.\d+\.\d+\.\d+)\]/',
+                    'regex' => '/lost connection after AUTH from \S+\[(' . $ip . ')\]/',
                     'reason' => 'SMTP failed login',
                     'enabled' => true
                 ],
                 'proftpd_failed_login' => [
-                    'regex' => '/proftpd\[\d+\] \S+ \((\d+\.\d+\.\d+\.\d+)\[\d+\.\d+\.\d+\.\d+\]\): USER \S+: no such user found from \d+\.\d+\.\d+\.\d+ to \d+\.\d+\.\d+\.\d+:\d+/i',
+                    'regex' => '/proftpd\[\d+\] \S+ \((' . $ip . ')\[' . $ip . ']\): USER \S+: no such user found from ' . $ip . ' to ' . $ip . ':\d+/i',
                     'reason' => 'ProFTPD failed login',
                     'enabled' => true
                 ],
@@ -86,7 +93,7 @@ class LogScanner
                     'enabled' => true
                 ],
                 'sudo_auth_fail' => [
-                    'regex' => '/sudo:.*auth failure;.*rhost=(\d+\.\d+\.\d+\.\d+)/',
+                    'regex' => '/sudo:.*auth failure;.*rhost=(' . $ip . ')/',
                     'reason' => 'Sudo authentication failure',
                     'enabled' => true
                 ]
@@ -139,8 +146,9 @@ class LogScanner
     }
 
     /**
-     * Tails a file for real-time scanning.
-     * 
+     * Tails a file for real-time scanning using inotifywait if available,
+     * otherwise falls back to tail -f.
+     *
      * @param string $filePath Path to the file.
      * @param string $format Format type.
      * @return Generator Yields detected malicious entries.
@@ -148,6 +156,15 @@ class LogScanner
     private function tailFile(string $filePath, string $format = 'plain'): Generator
     {
         $this->logger->info("Starting real-time tail of $filePath");
+
+        // Try inotifywait-based tailing first (more efficient than tail -f)
+        $inotifyCheck = shell_exec('which inotifywait 2>/dev/null');
+        if ($inotifyCheck !== null && trim((string)$inotifyCheck) !== '') {
+            yield from $this->tailFileWithInotify($filePath, $format);
+            return;
+        }
+
+        // Fallback to tail -f
         $command = 'tail -n 0 -f ' . escapeshellarg($filePath);
         $handle = popen($command, 'r');
         if ($handle) {
@@ -155,6 +172,87 @@ class LogScanner
             pclose($handle);
         } else {
             $this->logger->error("Could not open tail command for $filePath");
+        }
+    }
+
+    /**
+     * Tails a file using inotifywait for efficient file change monitoring.
+     *
+     * @param string $filePath Path to the file.
+     * @param string $format Format type.
+     * @return Generator Yields detected malicious entries.
+     */
+    private function tailFileWithInotify(string $filePath, string $format = 'plain'): Generator
+    {
+        $this->logger->info("Using inotifywait for real-time tail of $filePath");
+
+        // Get the current end of file position
+        $fileHandle = fopen($filePath, 'r');
+        if ($fileHandle === false) {
+            $this->logger->error("Could not open file for inotify tail: $filePath");
+            return;
+        }
+
+        // Seek to end of file to only read new content
+        fseek($fileHandle, 0, SEEK_END);
+        $directory = dirname($filePath);
+
+        // Use inotifywait to monitor for modifications
+        $inotifyCommand = sprintf(
+            'inotifywait -m -q -e modify --format "%%e" %s 2>/dev/null',
+            escapeshellarg($directory)
+        );
+        $inotifyHandle = popen($inotifyCommand, 'r');
+
+        if ($inotifyHandle === false) {
+            fclose($fileHandle);
+            return;
+        }
+
+        try {
+            while (true) {
+                // Wait for inotify event
+                $event = fgets($inotifyHandle);
+                if ($event === false) {
+                    break;
+                }
+
+                // Check if the file exists
+                $stat = @stat($filePath);
+                if ($stat === false) {
+                    continue;
+                }
+
+                // Seek to the position we left off and read new content
+                $size = $stat['size'];
+                $currentPos = ftell($fileHandle);
+                if ($currentPos === false) {
+                    continue;
+                }
+
+                // If file was rotated (smaller than our position), re-open it
+                if ($size < $currentPos) {
+                    fclose($fileHandle);
+                    $newHandle = fopen($filePath, 'r');
+                    if ($newHandle === false) {
+                        break;
+                    }
+                    $fileHandle = $newHandle;
+                    $currentPos = 0;
+                }
+
+                if ($size > $currentPos) {
+                    fseek($fileHandle, (int)$currentPos);
+                    while (($line = fgets($fileHandle)) !== false) {
+                        yield from $this->scanLine($line, $filePath);
+                    }
+                }
+            }
+        } finally {
+            pclose($inotifyHandle);
+            if (is_resource($fileHandle)) {
+                fclose($fileHandle);
+            }
         }
     }
 
@@ -262,13 +360,13 @@ class LogScanner
     private function scanLine(string $line, string $source): Generator
     {
         foreach ($this->patterns as $type => $pattern) {
-            if (isset($pattern['enabled']) && $pattern['enabled'] === false) {
+            if (($pattern['enabled'] ?? true) === false) {
                 continue;
             }
-            if (isset($pattern['format']) && $pattern['format'] === 'json') {
+            if (($pattern['format'] ?? null) === 'json') {
                 continue;
             }
-            
+
             $regex = $pattern['regex'];
             if ($pattern['multiline'] ?? false) {
                 $regex .= 's'; // Add dotall modifier for multiline
@@ -288,28 +386,29 @@ class LogScanner
 
     /**
      * Scans a structured data array (e.g., from JSON logs) for malicious patterns.
-     * 
-     * @param array $data The data to scan.
+     *
+     * @param array<string, mixed> $data The data to scan.
      * @param string $source Source name for logging.
      * @return Generator Yields detected malicious entries.
      */
     private function scanData(array $data, string $source): Generator
     {
         foreach ($this->patterns as $type => $pattern) {
-            if (isset($pattern['enabled']) && $pattern['enabled'] === false) {
+            if (($pattern['enabled'] ?? true) === false) {
                 continue;
             }
-            if (isset($pattern['format']) && $pattern['format'] === 'json') {
-                $field = $pattern['field'] ?? 'message';
-                if (isset($data[$field]) && preg_match($pattern['regex'], $data[$field], $matches)) {
-                    $ip = $matches[1];
-                    $this->logger->debug("Match found: $ip ($type) in $source (JSON)");
-                    yield [
-                        'ip' => $ip,
-                        'reason' => $pattern['reason'],
-                        'source' => $source
-                    ];
-                }
+            if (($pattern['format'] ?? null) !== 'json') {
+                continue;
+            }
+            $field = $pattern['field'] ?? 'message';
+            if (isset($data[$field]) && preg_match($pattern['regex'], $data[$field], $matches)) {
+                $ip = $matches[1];
+                $this->logger->debug("Match found: $ip ($type) in $source (JSON)");
+                yield [
+                    'ip' => $ip,
+                    'reason' => $pattern['reason'],
+                    'source' => $source
+                ];
             }
         }
     }

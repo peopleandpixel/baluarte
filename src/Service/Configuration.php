@@ -11,12 +11,13 @@ namespace Baluarte\Service;
  */
 class Configuration
 {
+    /** @var array<string, mixed> */
     private array $config;
 
     /**
      * Configuration constructor.
      * 
-     * @param array $config
+     * @param array<string, mixed> $config
      */
     public function __construct(array $config = [])
     {
@@ -48,7 +49,7 @@ class Configuration
     /**
      * Returns the raw configuration array.
      * 
-     * @return array
+     * @return array<string, mixed>
      */
     public function all(): array
     {

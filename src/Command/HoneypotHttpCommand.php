@@ -3,7 +3,6 @@
 namespace Baluarte\Command;
 
 use Baluarte\Service\HoneypotService;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -11,11 +10,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 class HoneypotHttpCommand extends Command
 {
-    protected static $defaultName = 'honeypot:http';
+    protected static ?string $defaultName = 'honeypot:http';
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(
         private readonly HoneypotService $honeypot,
-        private readonly LoggerInterface $logger,
         private readonly array $config
     ) {
         parent::__construct();
@@ -24,7 +25,7 @@ class HoneypotHttpCommand extends Command
     protected function configure(): void
     {
         $this
-            ->setName(self::$defaultName)
+            ->setName('honeypot:http')
             ->setDescription('Run a lightweight HTTP honeypot listener');
     }
 
@@ -60,6 +61,7 @@ class HoneypotHttpCommand extends Command
         stream_set_blocking($server, true);
 
         // Main accept loop
+        // @phpstan-ignore-next-line (intentional infinite server loop)
         while (true) {
             $conn = @stream_socket_accept($server, 5);
             if ($conn === false) {
@@ -93,10 +95,8 @@ class HoneypotHttpCommand extends Command
             @fclose($conn);
         }
 
-        // Unreachable in normal flow, but for completeness
-        // @codeCoverageIgnoreStart
+        // @phpstan-ignore deadCode.unreachable (unreachable after intentional infinite loop)
         @fclose($server);
         return Command::SUCCESS;
-        // @codeCoverageIgnoreEnd
     }
 }

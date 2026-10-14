@@ -29,7 +29,7 @@ class MigrationManager
     /**
      * Runs all pending migrations.
      *
-     * @param array $migrations List of MigrationInterface instances.
+     * @param list<MigrationInterface> $migrations List of MigrationInterface instances.
      * @throws Exception
      * @throws \Exception
      */
@@ -102,7 +102,7 @@ class MigrationManager
     /**
      * Returns a list of versions of applied migrations.
      *
-     * @return array
+     * @return list<string>
      * @throws Exception
      */
     private function getAppliedMigrations(): array
