@@ -5,62 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-02-04
+## [Unreleased]
+
+## [2.0.0] - 2026-10-14
+
+> ⚠️ **Breaking changes** — Version 2.0 introduces major architectural improvements and new features. Read the migration notes below.
+
+### Breaking Changes
+- **Multi-database support**: Database driver is now configurable via `config.yaml`. SQLite remains the default, but PostgreSQL and MySQL/MariaDB are fully supported via Doctrine DBAL abstraction layer.
+- **Dependency updates**: Guzzle upgraded from `^7.10` to `^8.0`, PHPUnit from `^12.5` to `^13.0`, Symfony components from `^8.0` to `^8.1`, Doctrine DBAL from `^4.4` to `^4.5`.
+- **Dashboard map engine**: Leaflet replaced by MapLibre GL JS with WebGL vector tiles from LFMaps (free, unlimited, no API key required).
 
 ### Added
-- Full country-level blocking support across all firewall drivers (UFW, IPTables, Nftables).
-- `blockRange` and `unblockRange` methods to `FirewallDriverInterface`.
-- "Dry-run" mode in `ScanCommand` and `ScanService` to test patterns without blocking.
-- Security-focused log patterns for WordPress, PHPUnit RCE, and web shell probes.
-- Support for external configuration file (YAML or JSON) to define custom patterns and database settings.
-- IP reputation checking using external APIs (e.g., VirusTotal, AbuseIPDB).
-- Integration with system firewalls (`iptables`, `nftables`, or `ufw`) for automatic blocking.
-- Support for different log formats (e.g., JSON logs, systemd journal).
-- Email or webhook notifications for significant threat detection.
-- Dashboard and web interface for visualization of detected threats.
-- IP Whitelisting (including CIDR support) to prevent blocking trusted IPs.
-- GeoIP lookups to enrich IP data with location information (Country, City, ISP).
-- API endpoint `/blocked-ips` for comprehensive blocking of country-mapped IP ranges.
-- Threshold-based blocking (e.g., X failed attempts within Y minutes).
-- Temporary bans with automatic unblocking after a configurable period.
-- Real-time log tailing support (e.g., using `tail -f` or `inotify`).
-- REST API to manage bans, whitelist, and settings.
-- Support for multiple firewall drivers simultaneously.
-- Export feature (CSV, JSON) for detected threats.
-- Advanced pattern matching (multi-line logs, look-ahead/look-behind).
-- Rate-limiting notifications to prevent alert fatigue.
-- Honey Pot listener (fake SSH or HTTP) to catch proactive attackers.
-- MQTT notifications for IoT and home automation integration.
-- Country Whitelisting to restrict traffic to specific regions.
-- DNSBL (DNS-based Blackhole List) lookups for reputation checks.
-- Interactive maps to the dashboard for visual threat distribution.
-- Real-time dashboard updates using WebSockets or SSE.
-- Detailed drill-down views for IP addresses (GeoIP history, previous detections).
-- Comprehensive `README.md`, database schema documentation, and `CONTRIBUTING.md` guide.
-- Inline PHPDoc for all classes and methods.
+- **Multi-database support** — PostgreSQL, MySQL, and MariaDB via Doctrine DBAL. Configure via `database.driver` in `config.yaml` (`sqlite`, `postgresql`, `mysql`, `mariadb`). SQLite remains the default for quick local installs.
+- **STIX/TAXII 2.1 export** — Export threats to STIX 2.1 Bundle format with Indicator, Observed-Data, IPv4-Addr, and Location objects. CLI: `./baluarte.php export --format stix`.
+- **Webhook notification templates** — JSON-based templates with variable substitution: `{ip}`, `{country}`, `{city}`, `{isp}`, `{reason}`, `{count}`, `{timestamp}`, `{type}`.
+- **External blocklist import** — Import IP blocklists from Emerging Threats, Abuse.ch, and blocklist.de. CLI: `./baluarte.php import --source emerging-threats`.
+- **Daemon mode with scheduled scans** — Continuous scanning with configurable intervals. CLI: `./baluarte.php scan --daemon --interval=300`.
+- **Dashboard analytics with Chart.js** — Four interactive charts: threats over time, top countries, attack types, and ban timeline. Six new API endpoints (`/api/stats/*`).
+- **OpenAPI 3.0 specification** — Complete REST API documentation in `docs/openapi.yaml` with all endpoints, schemas, and JWT authentication.
+- **Configuration reference documentation** — Comprehensive `docs/configuration.md` with all YAML options, types, defaults, and CLI commands.
+- **Docker named volumes** — Database and logs persisted via named volumes (`baluarte-data`, `baluarte-logs`) in `docker-compose.yml`.
+- **Docker HEALTHCHECK** — Container health monitoring via HTTP check on the built-in server.
+- **Non-root Docker user** — Security improvement: container runs as `baluarte` user, not root.
+- **CI/CD pipeline** — GitHub Actions workflow with PHPStan (Level 8), PHPUnit with coverage, Composer audit, and Docker build.
+- **.dockerignore** — Exclude `vendor/`, `.git/`, `tests/`, `logs/`, and IDE files from Docker builds for faster builds and smaller images.
+- **Localization verification tool** — `tools/verify-locales.php` checks all 32 locales against English reference for missing/extra keys.
 
 ### Changed
-- Refactored `FirewallManager` to use dedicated driver classes (UFW, IPTables, Nftables).
-- Decoupled `ReputationChecker` and `GeoIpService` from `ScanCommand` via interfaces.
-- Refactored `ScanCommand` into smaller, more focused service classes.
-- Switched to a proper CLI library (Symfony Console) for better argument parsing and output.
-- Improved error handling and logging (PSR-3 compliant).
-- Use proper Configuration objects instead of passing arrays.
+- **DatabaseHandler** — Constructor accepts `array|string` for backward compatibility. `buildConnectionParams()` creates driver-specific Doctrine DBAL connections. SQLite `PRAGMA journal_mode=WAL` is applied only for SQLite driver.
+- **Dockerfile** — Added `pdo_pgsql` and `pdo_mysql` PHP extensions, `postgresql-dev` and `mysql-dev` system packages for multi-database support.
+- **docker-compose.yml** — Removed conflicting `network_mode: host` (incompatible with `ports:`). Added optional PostgreSQL (`postgres:17-alpine`) and MariaDB (`mariadb:11-jammy`) services, commented out by default.
+- **Dashboard map** — Migrated from Leaflet (Canvas 2D, raster tiles) to MapLibre GL JS 5.23.0 (WebGL, vector tiles). Free unlimited tiles from LFMaps (`lfmaps.fr`), no API key required.
+- **Dependencies** — Updated 69 packages: Guzzle 7→8, PHPUnit 12→13, Symfony 8.0→8.1, Doctrine DBAL 4.4→4.5, PHPStan 2.1→2.3, plus Monolog, Latte, GeoIP2, Firebase JWT, MQTT-Client, and all sub-dependencies.
+- **Git tracking** — `vendor/` removed from Git index and properly ignored via `.gitignore`. `composer.lock` remains versioned.
 
 ### Fixed
-- Improved database efficiency with bulk inserts and optimized queries for dashboard statistics.
-- Optimized `LogScanner` for memory efficiency using `yield from` and fixed-size buffers.
-- Parallelized log scanning and GeoIP/Reputation checks.
-- Implemented incremental log scanning (tracking file offsets) to avoid redundant scans.
+- **PHPUnit deprecations** — Resolved `with*()` without `expects()` deprecation in PHPUnit 13. Migrated `phpunit.xml` configuration to PHPUnit 13 schema.
+- **PHPStan type annotations** — Added `@var int<0, 255>` annotation for `chr()` in `WhitelistManager.php` to satisfy PHPStan 2.3 strict typing.
+- **Guzzle 8 type safety** — Added `(string)` cast for API key in `ReputationChecker.php` to satisfy Guzzle 8's stricter header type requirements.
 
 ### Security
-- Added security-focused log patterns for common web probes and RCE attempts.
-- Implemented temporary bans and threshold-based blocking to mitigate brute-force attacks.
+- **Non-root Docker container** — Container runs as unprivileged `baluarte` user.
+- **Composer audit in CI** — Automated security vulnerability scanning on every push/PR.
 
 ### Infrastructure
-- Added `Dockerfile` and `docker-compose.yml` for containerized deployment.
-- Provided systemd unit file for daemon mode.
-- Implemented log rotation and automatic database cleanup.
-- Added Redis support as an alternative backend for high-traffic environments.
-- Integrated PHPStan and CI/CD pipeline for automated testing and static analysis.
-- Implemented automated database migrations.
+- **GitHub CODEOWNERS** — Code ownership rules for review workflow.
+- **GitHub issue templates** — Bug report template for structured issue reporting.
+- **Database migrations** — Second migration `Version20261014000000` for multi-database schema compatibility.
+
+### Migration Guide (1.x → 2.0)
+1. **Backup your database**: `cp baluarte.sqlite baluarte.sqlite.bak`
+2. **Update config.yaml**: The `database.path` key is now `database_config` (passed as a full array). For SQLite, the default configuration works out of the box.
+3. **For PostgreSQL/MySQL**: Set `database.driver` to `postgresql` or `mysql` and provide `host`, `port`, `dbname`, `user`, `password`.
+4. **Run migrations**: The application will auto-migrate on first run.
+5. **Verify**: Run `./baluarte.php scan --report` to confirm everything works.

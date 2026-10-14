@@ -5,9 +5,10 @@
 [![Release](https://img.shields.io/github/v/release/peopleandpixel/baluarte)](https://github.com/peopleandpixel/baluarte/releases)
 [![Docker](https://img.shields.io/badge/Docker-ghcr.io%2Fpeopleandpixel%2Fbaluarte-blue?logo=docker)](https://github.com/peopleandpixel/baluarte/pkgs/container/baluarte)
 [![Systemd](https://img.shields.io/badge/systemd-service-green)](baluarte.service)
+[![CI](https://github.com/peopleandpixel/baluarte/actions/workflows/ci.yml/badge.svg)](https://github.com/peopleandpixel/baluarte/actions)
 
 > **Ban unwanted hosts, domains & IPs from your network — godless easy.**  
-> Log scanner + Auto-blocker for Linux servers. systemd journal, files, JSON → ufw/iptables/nftables + AbuseIPDB + GeoIP + MQTT + REST API + 2FA Dashboard.
+> Log scanner + Auto-blocker for Linux servers. systemd journal, files, JSON → ufw/iptables/nftables + AbuseIPDB + GeoIP + MQTT + REST API + 2FA Dashboard + STIX Export + Multi-DB.
 
 ---
 
@@ -34,11 +35,18 @@
 - **AbuseIPDB**: Enrich with confidence score, auto-block known abusers
 - **GeoIP**: MaxMind DB → country/city/ASN display, geo-based rules
 - **MQTT**: Publish threats/bans, subscribe to commands (unban, rescan)
-- **REST API** (`/api/`): JWT auth, CRUD bans, threat list, config read
-- **Web Dashboard**: Real-time threat feed, ban management, settings, 2FA (TOTP)
+- **REST API** (`/api/`): JWT auth, CRUD bans, threat list, config read, OpenAPI 3.0 spec
+- **Web Dashboard**: Real-time threat feed, ban management, settings, 2FA (TOTP), Chart.js analytics
+- **Interactive map**: MapLibre GL JS with WebGL vector tiles (LFMaps, free & unlimited)
+- **STIX/TAXII 2.1 export**: Share threat intelligence in standard format
+- **External blocklist import**: Import from Emerging Threats, Abuse.ch, blocklist.de
+- **Webhook templates**: JSON templates with variable substitution for custom notifications
+- **Daemon mode**: Continuous scheduled scanning with configurable intervals
+- **Multi-database**: SQLite (default), PostgreSQL, MySQL, MariaDB via Doctrine DBAL
 - **systemd service**: `baluarte.service` included, runs as daemon
-- **Docker**: Multi-arch image, compose file
+- **Docker**: Multi-arch image, compose file, named volumes, healthcheck, non-root user
 - **Parallel scanning**: `pcntl_fork` for multi-log processing
+- **CI/CD**: GitHub Actions with PHPStan, PHPUnit, Composer audit, Docker build
 
 ---
 
@@ -47,6 +55,7 @@
 - **PHP 8.4+** (CLI) — `pcntl`, `posix`, `pdo_sqlite`, `mbstring`, `curl`, `json`, `sodium`
 - **Linux** with systemd (for journal + service)
 - **Firewall**: `ufw` OR `iptables` OR `nftables` (root/CAP_NET_ADMIN for blocking)
+- **Database**: SQLite (default, no setup) OR PostgreSQL 17+ OR MySQL 8+ / MariaDB 11+
 - **Composer** 2.x
 - **Optional**: MaxMind GeoIP2 DB (`GeoLite2-City.mmdb`), AbuseIPDB API key, MQTT broker
 
@@ -99,7 +108,13 @@ docker run -d \
 
 ```yaml
 database:
-  path: "data/baluarte.sqlite"
+  driver: "sqlite"  # sqlite | postgresql | mysql | mariadb
+  path: "data/baluarte.sqlite"  # For SQLite
+  # host: "localhost"           # For PostgreSQL/MySQL
+  # port: 5432                  # 5432 (PostgreSQL) | 3306 (MySQL)
+  # dbname: "baluarte"
+  # user: "baluarte"
+  # password: "secret"
 
 api:
   jwt_secret: "base64-encoded-32-bytes"  # REQUIRED for API auth
@@ -119,6 +134,10 @@ notifications:
     host: "127.0.0.1"
     port: 1883
     topic_prefix: "baluarte"
+  webhook:
+    enabled: false
+    url: "https://hooks.example.com/baluarte"
+    template: '{"ip":"{ip}","country":"{country}","reason":"{reason}"}'
 
 gui:
   password_hash: "$2y$12$..."  # bcrypt (run: php -r "echo password_hash('yourpass', PASSWORD_BCRYPT);")
@@ -142,7 +161,7 @@ patterns:
     ban_time: 604800
 ```
 
-> Full schema: [`docs/schema.md`](docs/schema.md) · Example: [`config/config.yaml.example`](config/config.yaml.example)
+> Full reference: [`docs/configuration.md`](docs/configuration.md) · Example: [`config/config.yaml.dist`](config/config.yaml.dist)
 
 ---
 
@@ -155,8 +174,17 @@ patterns:
 # Scan journal only (default)
 ./baluarte.php scan
 
+# Continuous daemon mode (scan every 5 minutes)
+./baluarte.php scan --daemon --interval=300
+
 # Generate HTML report
 ./baluarte.php scan --report
+
+# Export threats to STIX 2.1 format
+./baluarte.php export --format stix
+
+# Import external blocklists
+./baluarte.php import --source emerging-threats
 
 # Web dashboard (built-in PHP server)
 ./baluarte.php serve --port=8080
@@ -192,6 +220,11 @@ Base: `http://host:8080/api/` · Auth: `Authorization: Bearer ***`
 | `DELETE` | `/bans/{ip}` | Remove ban |
 | `GET` | `/threats` | List detected threats (paginated) |
 | `GET` | `/settings` | Current config (sanitized) |
+| `GET` | `/stats/threats-by-day` | Threats per day (for charts) |
+| `GET` | `/stats/threats-by-hour` | Threats per hour (for charts) |
+| `GET` | `/stats/top-countries` | Top attacking countries |
+| `GET` | `/stats/attack-types` | Attack type distribution |
+| `GET` | `/stats/ban-timeline` | Ban timeline data |
 
 **Get JWT token:**
 ```bash
@@ -199,6 +232,8 @@ curl -X POST http://host:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password": "***"}'
 ```
+
+> Full API specification: [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI 3.0)
 
 ---
 
