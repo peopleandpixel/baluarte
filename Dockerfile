@@ -12,8 +12,8 @@ RUN apk add --no-cache \
     nftables \
     ufw
 
-# Install PHP extensions (SQLite, PostgreSQL, MySQL)
-RUN docker-php-ext-install pdo pdo_sqlite pdo_pgsql pdo_mysql
+# Install PHP extensions (SQLite, PostgreSQL, MySQL, pcntl)
+RUN docker-php-ext-install pdo pdo_sqlite pdo_pgsql pdo_mysql pcntl
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
