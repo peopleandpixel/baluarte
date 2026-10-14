@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-10-14
+
+### Fixed
+- **Web dashboard crash on startup** — `BaseController` locale property was assigned `null` when session wasn't started, causing `TypeError`. Fixed by falling back to default locale string.
+- **Missing template files** — Latte template path in `BaseController` was incorrect (`../../templates/` instead of `../../../templates/`), causing `TemplateNotFoundException` for all dashboard pages.
+- **Missing locales path** — Translator locales path had the same directory depth error as templates, causing all translations to fail and display raw keys (e.g., "app.name", "nav.logout").
+- **Latte translator registration conflict** — Stale compiled templates conflicted with `TranslatorExtension`. Removed the `key` parameter from `TranslatorExtension` constructor to avoid compile-time translation issues.
+- **Dashboard API endpoints returning 404** — Router API route matching used URL slashes but routes were registered with colons. Fixed by converting path separators (`str_replace('/', ':', $path)`).
+- **MapLibre GL JS map not loading** — Map style URL (`lfmaps.fr`) was blocked by CORS policy. Changed to CORS-friendly MapLibre demo tiles (`demotiles.maplibre.org`).
+- **Chart.js charts filling entire screen** — Canvas elements with `maintainAspectRatio: false` had no height constraint, causing infinite vertical expansion. Added fixed 200px containers.
+- **Charts showing blank with empty data** — Added `Array.isArray()` validation and empty data placeholders for all 4 chart functions (threats over time, top countries, attack types, ban timeline).
+- **Dashboard foreach warning** — `detectedIps` was passed as JSON-encoded string instead of array to Latte templates, causing `foreach()` warning. Separated array variable from JSON variable.
+- **Database migration for existing tables** — `Version20260204000000` migration skipped adding columns (`latitude`, `longitude`, `city`, `isp`, `country`, `detected_at`) and indexes when `malicious_ips` table already existed, causing `SQLSTATE[HY000]: General error: 1 no such column` on scan. Added `else` branch to handle existing tables gracefully.
+
+### Added
+- **Chart translation keys** — Added 5 new translation keys for chart titles (`dashboard.stats.threats_over_time`, `dashboard.stats.top_countries`, `dashboard.stats.attack_types`, `dashboard.stats.ban_timeline`) and "no data" message (`dashboard.no_data`).
+- **Empty data placeholders** — All 4 dashboard charts now show translated "No data available" messages when API returns empty arrays instead of blank canvases.
+
+### Changed
+- **Dashboard map tiles** — Map style URL changed from LFMaps (`lfmaps.fr`) to MapLibre demo tiles (`demotiles.maplibre.org`) to avoid CORS issues. Attribution updated accordingly.
+
 ## [2.0.0] - 2026-10-14
 
 > ⚠️ **Breaking changes** — Version 2.0 introduces major architectural improvements and new features. Read the migration notes below.

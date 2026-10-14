@@ -37,7 +37,7 @@
 - **MQTT**: Publish threats/bans, subscribe to commands (unban, rescan)
 - **REST API** (`/api/`): JWT auth, CRUD bans, threat list, config read, OpenAPI 3.0 spec
 - **Web Dashboard**: Real-time threat feed, ban management, settings, 2FA (TOTP), Chart.js analytics
-- **Interactive map**: MapLibre GL JS with WebGL vector tiles (LFMaps, free & unlimited)
+- **Interactive map**: MapLibre GL JS with WebGL vector tiles (MapLibre demo tiles, CORS-friendly)
 - **STIX/TAXII 2.1 export**: Share threat intelligence in standard format
 - **External blocklist import**: Import from Emerging Threats, Abuse.ch, blocklist.de
 - **Webhook templates**: JSON templates with variable substitution for custom notifications
