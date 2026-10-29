@@ -282,3 +282,5 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 **Jens Reinemuth** — Senior Dev (PHP, Rust, Flutter, DevOps, AI)  
 🇪🇺 EU · 🇵🇹 Portugal · 📧 jens@reinemuth.pt · [GitHub](https://github.com/peopleandpixel) · [LinkedIn](https://linkedin.com/in/jensreinemuth)  
 💼 Remote (Germany/EU) · 25+ years exp.
+
+[![People & Pixel Stats](https://github-readme-stats.vercel.app/api?username=peopleandpixel&show_icons=true&theme=tokyonight&count_private=true)](https://github.com/peopleandpixel)
